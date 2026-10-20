@@ -1,21 +1,28 @@
+/**
+ * Cliente HTTP tipado y seguro para consumir la API de Nicabliss.
+ * Maneja automáticamente encabezados JSON, Bearer Token y códigos de error comunes (401, 403, 500).
+ */
+
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:4000/api/v1";
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: {
-    code: string;
-    message: string;
-    details?: Record<string, string[]>;
-  };
+export class ApiError extends Error {
+  code?: string;
+  status?: number;
+
+  constructor(message: string, code?: string, status?: number) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+    this.status = status;
+  }
 }
 
 class ApiClient {
   private baseUrl: string;
 
   constructor(baseUrl: string) {
-    this.baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+    this.baseUrl = baseUrl;
   }
 
   private getToken(): string | null {
@@ -26,9 +33,7 @@ class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = endpoint.startsWith("http")
-      ? endpoint
-      : `${this.baseUrl}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+    const url = `${this.baseUrl}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -46,14 +51,13 @@ class ApiClient {
         headers,
       });
 
-      // Si el token expiró o es inválido, cerrar sesión limpiamente
       if (response.status === 401) {
         localStorage.removeItem("nicabliss_token");
         localStorage.removeItem("nicabliss_user");
         window.dispatchEvent(new CustomEvent("nicabliss:session-expired"));
       }
 
-      let data: any;
+      let data: unknown;
       const contentType = response.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
         data = await response.json();
@@ -62,24 +66,28 @@ class ApiClient {
       }
 
       if (!response.ok) {
+        const errorRecord = typeof data === "object" && data !== null && "error" in data
+          ? (data as { error?: { message?: string; code?: string } }).error
+          : null;
+
         const errorMessage =
-          data?.error?.message ||
+          errorRecord?.message ||
           (typeof data === "string" ? data : "Error en el servidor");
-        const error = new Error(errorMessage) as any;
-        error.code = data?.error?.code || "HTTP_ERROR";
-        error.status = response.status;
-        throw error;
+        const errorCode = errorRecord?.code || "HTTP_ERROR";
+
+        throw new ApiError(errorMessage, errorCode, response.status);
       }
 
-      return data;
-    } catch (err: any) {
-      // Captura fallas de red cuando la API está apagada
-      if (err.name === "TypeError" && err.message.includes("fetch")) {
-        const netErr = new Error(
-          "No se pudo conectar con el servidor de Nicabliss (http://localhost:4000). Verifica que la API esté encendida."
-        ) as any;
-        netErr.code = "NETWORK_ERROR";
-        throw netErr;
+      return data as T;
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        throw err;
+      }
+      if (err instanceof TypeError && err.message.includes("fetch")) {
+        throw new ApiError(
+          "No se pudo conectar con el servidor de Nicabliss (http://localhost:4000). Verifica que la API esté encendida.",
+          "NETWORK_ERROR"
+        );
       }
       throw err;
     }
@@ -91,7 +99,7 @@ class ApiClient {
 
   public post<T>(
     endpoint: string,
-    body?: any,
+    body?: unknown,
     headers?: Record<string, string>
   ): Promise<T> {
     return this.request<T>(endpoint, {
@@ -103,7 +111,7 @@ class ApiClient {
 
   public patch<T>(
     endpoint: string,
-    body?: any,
+    body?: unknown,
     headers?: Record<string, string>
   ): Promise<T> {
     return this.request<T>(endpoint, {
