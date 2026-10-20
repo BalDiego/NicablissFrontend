@@ -131,3 +131,19 @@ export interface DashboardMetrics {
     status: string;
   }[];
 }
+
+export interface CreateUserPayload {
+  username: string;
+  email: string;
+  password: string;
+  fullName: string;
+  role?: "ADMIN" | "RECEPTIONIST" | "STAFF";
+}
+
+export interface UpdateUserPayload {
+  username?: string;
+  email?: string;
+  password?: string;
+  fullName?: string;
+  role?: "ADMIN" | "RECEPTIONIST" | "STAFF";
+}

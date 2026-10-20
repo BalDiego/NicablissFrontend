@@ -4,13 +4,14 @@ export type Pantalla =
   | "cobros"
   | "pedidos"
   | "lavanderia"
-  | "caja";
+  | "caja"
+  | "usuarios";
 
 export type NavItem = {
   id: Pantalla;
   label: string;
   icon: string;
-  badge?: number;
+  badge?: number | string;
   badgeColor?: string;
   eyebrow?: string;
 };

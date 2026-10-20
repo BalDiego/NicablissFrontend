@@ -7,6 +7,7 @@ import CuentasCobros from "./CuentasCobros";
 import PedidosAlimentos from "./PedidosAlimentos";
 import Lavanderia from "./Lavanderia";
 import CajaCierres from "./CajaCierres";
+import UsuariosRoles from "./UsuariosRoles";
 import { authService } from "./services/auth.service";
 import "./App.css";
 import "./Login.css";
@@ -115,6 +116,7 @@ function App() {
         {pantalla === "pedidos" && <PedidosAlimentos />}
         {pantalla === "lavanderia" && <Lavanderia />}
         {pantalla === "caja" && <CajaCierres />}
+        {pantalla === "usuarios" && <UsuariosRoles />}
       </AppLayout>
     );
   }
