@@ -186,6 +186,7 @@ export default function AppLayout({
             </div>
           </button>
 
+          {/* Desktop collapse button */}
           <button
             type="button"
             className="sidebar-collapse-btn"
@@ -194,6 +195,17 @@ export default function AppLayout({
             aria-label={isCollapsed ? "Expandir menú" : "Colapsar menú"}
           >
             {isCollapsed ? "→" : "←"}
+          </button>
+
+          {/* Mobile close button */}
+          <button
+            type="button"
+            className="sidebar-close-mobile-btn"
+            onClick={() => setMobileOpen(false)}
+            title="Cerrar menú lateral"
+            aria-label="Cerrar menú"
+          >
+            ✕
           </button>
         </div>
 
@@ -311,21 +323,36 @@ export default function AppLayout({
       >
         {/* Persistent Sticky Top Header */}
         <header className="app-header">
-          {/* Breadcrumbs with fluid module feedback */}
-          <nav className="header-breadcrumbs" aria-label="Ruta de navegación">
+          <div className="header-left">
+            {/* Hamburger button for mobile */}
             <button
               type="button"
-              className="breadcrumb-root-btn"
-              onClick={() => onNavigate("dashboard")}
+              className="mobile-hamburger-btn"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Abrir menú de navegación"
+              title="Abrir menú"
             >
-              Nicabliss
+              <span className="hamburger-bar" />
+              <span className="hamburger-bar" />
+              <span className="hamburger-bar" />
             </button>
-            <span className="breadcrumb-divider">/</span>
-            <span className="breadcrumb-current" key={pantallaActual}>
-              <span>{currentItem.icon}</span>
-              <span>{currentItem.label}</span>
-            </span>
-          </nav>
+
+            {/* Breadcrumbs with fluid module feedback */}
+            <nav className="header-breadcrumbs" aria-label="Ruta de navegación">
+              <button
+                type="button"
+                className="breadcrumb-root-btn"
+                onClick={() => onNavigate("dashboard")}
+              >
+                Nicabliss
+              </button>
+              <span className="breadcrumb-divider">/</span>
+              <span className="breadcrumb-current" key={pantallaActual}>
+                <span>{currentItem.icon}</span>
+                <span>{currentItem.label}</span>
+              </span>
+            </nav>
+          </div>
 
           {/* Header Right Actions */}
           <div className="header-actions">

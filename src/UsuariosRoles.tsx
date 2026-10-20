@@ -17,6 +17,7 @@ export default function UsuariosRoles() {
   const [modalEliminar, setModalEliminar] = useState<User | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [mostrarPassword, setMostrarPassword] = useState(false);
 
   // Formularios
   const [formNuevo, setFormNuevo] = useState({
@@ -113,11 +114,12 @@ export default function UsuariosRoles() {
   const abrirEditar = (user: User) => {
     setModalEditar(user);
     setFormError(null);
+    setMostrarPassword(false);
     setFormEditar({
       fullName: user.fullName,
       username: user.username,
       email: user.email,
-      password: "", // Opcional en edición
+      password: "",
       role: user.role,
     });
   };
@@ -206,7 +208,7 @@ export default function UsuariosRoles() {
           <span className="usuarios-eyebrow">NICABLISS / SEGURIDAD Y CONTROL DE ACCESO</span>
           <h1>Gestión de Usuarios y Roles</h1>
           <p>
-            Administración centralizada de cuentas de acceso al PMS hotelero, credenciales seguras y control de privilegios (RBAC).
+            Administración centralizada de cuentas de acceso al PMS hotelero, credenciales y jerarquía de permisos.
           </p>
         </div>
         <button
@@ -214,6 +216,7 @@ export default function UsuariosRoles() {
           className="usuarios-primary-btn"
           onClick={() => {
             setFormError(null);
+            setMostrarPassword(false);
             setModalCrear(true);
           }}
         >
@@ -314,18 +317,18 @@ export default function UsuariosRoles() {
           </div>
         </div>
 
-        {/* Tabla */}
+        {/* Tabla Responsiva */}
         <div className="usuarios-table-container">
           {loading ? (
-            <div style={{ padding: "48px", textAlign: "center", color: "#64748b" }}>
+            <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
               Cargando directorio de usuarios en Turso LibSQL...
             </div>
           ) : error ? (
-            <div style={{ padding: "48px", textAlign: "center", color: "#dc2626" }}>
+            <div style={{ padding: "40px", textAlign: "center", color: "#dc2626" }}>
               {error}
             </div>
           ) : usuariosFiltrados.length === 0 ? (
-            <div style={{ padding: "48px", textAlign: "center", color: "#64748b" }}>
+            <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
               No se encontraron usuarios coincidentes con el criterio de búsqueda.
             </div>
           ) : (
@@ -425,7 +428,7 @@ export default function UsuariosRoles() {
         </div>
       </div>
 
-      {/* Modal Crear Usuario */}
+      {/* Modal Crear Usuario (Diseño Responsivo Compacto) */}
       {modalCrear && (
         <div className="modal-overlay" onClick={() => !submitting && setModalCrear(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
@@ -436,6 +439,8 @@ export default function UsuariosRoles() {
                 className="modal-close-btn"
                 disabled={submitting}
                 onClick={() => setModalCrear(false)}
+                title="Cerrar ventana"
+                aria-label="Cerrar ventana"
               >
                 ✕
               </button>
@@ -463,69 +468,84 @@ export default function UsuariosRoles() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="crear-username">Nombre de Usuario (@username) *</label>
-                  <input
-                    id="crear-username"
-                    type="text"
-                    className="form-input"
-                    placeholder="Ej: sofia_recepcion"
-                    value={formNuevo.username}
-                    onChange={(e) => setFormNuevo({ ...formNuevo, username: e.target.value.toLowerCase().replace(/\s+/g, "") })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="crear-email">Correo Electrónico *</label>
-                  <input
-                    id="crear-email"
-                    type="email"
-                    className="form-input"
-                    placeholder="sofia@nicabliss.com"
-                    value={formNuevo.email}
-                    onChange={(e) => setFormNuevo({ ...formNuevo, email: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="crear-password">Contraseña Inicial *</label>
-                  <input
-                    id="crear-password"
-                    type="password"
-                    className="form-input"
-                    placeholder="Mínimo 4 caracteres"
-                    value={formNuevo.password}
-                    onChange={(e) => setFormNuevo({ ...formNuevo, password: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="crear-role">Rol y Privilegios en el Sistema *</label>
-                  <select
-                    id="crear-role"
-                    className="form-select"
-                    value={formNuevo.role}
-                    onChange={(e) => setFormNuevo({ ...formNuevo, role: e.target.value as any })}
-                  >
-                    <option value="RECEPTIONIST">🛎️ RECEPTIONIST (Huéspedes, Cobros y Turnos)</option>
-                    <option value="ADMIN">🛡️ ADMIN (Acceso total, Usuarios y Métricas)</option>
-                    <option value="STAFF">🧹 STAFF (Cocina, Comandas y Lavandería)</option>
-                  </select>
-
-                  <div className="role-explanation-box">
-                    {formNuevo.role === "ADMIN" && (
-                      <p><strong>Rol ADMIN:</strong> Acceso irrestricto a gestión de usuarios, auditoría contable, métricas del hotel y cierre de caja.</p>
-                    )}
-                    {formNuevo.role === "RECEPTIONIST" && (
-                      <p><strong>Rol RECEPTIONIST:</strong> Gestión de huéspedes, facturación, comandas y control de turnos de caja chica.</p>
-                    )}
-                    {formNuevo.role === "STAFF" && (
-                      <p><strong>Rol STAFF:</strong> Vista y actualización de comandas de cocina y pedidos de lavandería sin acceso a cobros ni usuarios.</p>
-                    )}
+                <div className="form-grid-2">
+                  <div className="form-group">
+                    <label htmlFor="crear-username">Nombre de Usuario (@username) *</label>
+                    <input
+                      id="crear-username"
+                      type="text"
+                      className="form-input"
+                      placeholder="sofia_recepcion"
+                      value={formNuevo.username}
+                      onChange={(e) => setFormNuevo({ ...formNuevo, username: e.target.value.toLowerCase().replace(/\s+/g, "") })}
+                      required
+                    />
                   </div>
+
+                  <div className="form-group">
+                    <label htmlFor="crear-email">Correo Electrónico *</label>
+                    <input
+                      id="crear-email"
+                      type="email"
+                      className="form-input"
+                      placeholder="sofia@nicabliss.com"
+                      value={formNuevo.email}
+                      onChange={(e) => setFormNuevo({ ...formNuevo, email: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-grid-2">
+                  <div className="form-group">
+                    <label htmlFor="crear-password">Contraseña Inicial *</label>
+                    <div className="password-input-wrapper">
+                      <input
+                        id="crear-password"
+                        type={mostrarPassword ? "text" : "password"}
+                        className="form-input"
+                        placeholder="Mínimo 4 caracteres"
+                        value={formNuevo.password}
+                        onChange={(e) => setFormNuevo({ ...formNuevo, password: e.target.value })}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="password-toggle-btn"
+                        onClick={() => setMostrarPassword(!mostrarPassword)}
+                        title={mostrarPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                        aria-label="Alternar visibilidad de contraseña"
+                      >
+                        {mostrarPassword ? "🙈" : "👁️"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="crear-role">Rol en el Sistema *</label>
+                    <select
+                      id="crear-role"
+                      className="form-select"
+                      value={formNuevo.role}
+                      onChange={(e) => setFormNuevo({ ...formNuevo, role: e.target.value as any })}
+                    >
+                      <option value="RECEPTIONIST">🛎️ RECEPTIONIST</option>
+                      <option value="ADMIN">🛡️ ADMIN</option>
+                      <option value="STAFF">🧹 STAFF</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="role-explanation-box">
+                  {formNuevo.role === "ADMIN" && (
+                    <p style={{ margin: 0 }}><strong>Rol ADMIN:</strong> Acceso irrestricto a gestión de usuarios, auditoría contable, métricas del hotel y cierre de caja.</p>
+                  )}
+                  {formNuevo.role === "RECEPTIONIST" && (
+                    <p style={{ margin: 0 }}><strong>Rol RECEPTIONIST:</strong> Gestión de huéspedes, facturación, comandas y control de turnos de caja chica.</p>
+                  )}
+                  {formNuevo.role === "STAFF" && (
+                    <p style={{ margin: 0 }}><strong>Rol STAFF:</strong> Vista y actualización de comandas de cocina y lavandería sin acceso a cobros ni usuarios.</p>
+                  )}
                 </div>
               </div>
 
@@ -558,6 +578,8 @@ export default function UsuariosRoles() {
                 className="modal-close-btn"
                 disabled={submitting}
                 onClick={() => setModalEditar(null)}
+                title="Cerrar ventana"
+                aria-label="Cerrar ventana"
               >
                 ✕
               </button>
@@ -591,31 +613,33 @@ export default function UsuariosRoles() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="edit-email">Correo Electrónico</label>
-                  <input
-                    id="edit-email"
-                    type="email"
-                    className="form-input"
-                    value={formEditar.email}
-                    onChange={(e) => setFormEditar({ ...formEditar, email: e.target.value })}
-                    required
-                  />
-                </div>
+                <div className="form-grid-2">
+                  <div className="form-group">
+                    <label htmlFor="edit-email">Correo Electrónico</label>
+                    <input
+                      id="edit-email"
+                      type="email"
+                      className="form-input"
+                      value={formEditar.email}
+                      onChange={(e) => setFormEditar({ ...formEditar, email: e.target.value })}
+                      required
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="edit-role">Rol Asignado</label>
-                  <select
-                    id="edit-role"
-                    className="form-select"
-                    value={formEditar.role}
-                    disabled={modalEditar.id === "usr_admin_001" || modalEditar.username === "admin"}
-                    onChange={(e) => setFormEditar({ ...formEditar, role: e.target.value as any })}
-                  >
-                    <option value="RECEPTIONIST">🛎️ RECEPTIONIST (Recepción y Front Desk)</option>
-                    <option value="ADMIN">🛡️ ADMIN (Administración Integral)</option>
-                    <option value="STAFF">🧹 STAFF (Personal de Operaciones)</option>
-                  </select>
+                  <div className="form-group">
+                    <label htmlFor="edit-role">Rol Asignado</label>
+                    <select
+                      id="edit-role"
+                      className="form-select"
+                      value={formEditar.role}
+                      disabled={modalEditar.id === "usr_admin_001" || modalEditar.username === "admin"}
+                      onChange={(e) => setFormEditar({ ...formEditar, role: e.target.value as any })}
+                    >
+                      <option value="RECEPTIONIST">🛎️ RECEPTIONIST</option>
+                      <option value="ADMIN">🛡️ ADMIN</option>
+                      <option value="STAFF">🧹 STAFF</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="form-group">
