@@ -1,0 +1,264 @@
+
+.cobros-page {
+  min-height: 100vh;
+  background: #f6f8fb;
+  padding: 38px;
+  color: #1e293b;
+}
+
+.cobros-heading,
+.cobros-panel-header,
+.cobros-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.cobros-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #64748b;
+}
+
+.cobros-heading h1 {
+  font-size: 29px;
+  margin: 12px 0 8px;
+}
+
+.cobros-heading p,
+.cobros-panel-header p {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.cobros-primary {
+  background: #1e3a5f;
+  color: white;
+  border: none;
+  border-radius: 9px;
+  padding: 13px 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cobros-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin: 30px 0;
+}
+
+.cobros-stat {
+  background: white;
+  border: 1px solid #e5eaf0;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cobros-stat span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.cobros-stat strong {
+  font-size: 27px;
+}
+
+.cobros-panel {
+  background: white;
+  border: 1px solid #e5eaf0;
+  border-radius: 13px;
+  overflow: hidden;
+}
+
+.cobros-panel-header {
+  padding: 24px;
+}
+
+.cobros-panel-header h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.cobros-panel-header input {
+  width: 330px;
+  max-width: 100%;
+  padding: 12px;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  background: white;
+  color: #1e293b;
+}
+
+.cobros-table-wrap {
+  overflow-x: auto;
+}
+
+.cobros-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.cobros-table th {
+  padding: 16px;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.cobros-table td {
+  padding: 18px 16px;
+  border-top: 1px solid #edf0f4;
+}
+
+.cobros-table td small {
+  display: block;
+  margin-top: 5px;
+  color: #64748b;
+}
+
+.cobros-status {
+  display: inline-block;
+  padding: 6px 11px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cobros-pagado {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.cobros-pendiente {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.cobros-parcial {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.cobros-action {
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #1e3a5f;
+  border-radius: 7px;
+  padding: 9px 14px;
+  cursor: pointer;
+}
+
+.cobros-action:disabled {
+  color: #94a3b8;
+  cursor: default;
+}
+
+.cobros-empty,
+.cobros-notice {
+  padding: 20px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.cobros-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.cobros-modal {
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 28px;
+  background: white;
+  border-radius: 14px;
+}
+
+.cobros-modal-header {
+  margin-bottom: 20px;
+}
+
+.cobros-modal-header h2 {
+  margin: 0;
+}
+
+.cobros-modal-header button {
+  background: transparent;
+  border: none;
+  color: #475569;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.cobros-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.cobros-modal label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cobros-modal input,
+.cobros-modal select {
+  padding: 11px;
+  border: 1px solid #d1d9e2;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: white;
+  color: #1e293b;
+}
+
+.cobros-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.cobros-cancel {
+  background: white;
+  border: 1px solid #d1d9e2;
+  color: #334155;
+  border-radius: 8px;
+  padding: 12px 18px;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .cobros-page {
+    padding: 20px;
+  }
+
+  .cobros-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cobros-heading,
+  .cobros-panel-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 500px) {
+  .cobros-stats {
+    grid-template-columns: 1fr;
+  }
+}

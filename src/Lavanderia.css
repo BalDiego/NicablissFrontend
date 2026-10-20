@@ -1,0 +1,385 @@
+
+.lavanderia-page {
+  min-height: 100vh;
+  padding: 38px;
+  background: #f6f8fb;
+  color: #1e293b;
+}
+
+.lavanderia-heading,
+.lavanderia-panel-header,
+.lavanderia-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.lavanderia-eyebrow {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.lavanderia-heading h1 {
+  margin: 12px 0 8px;
+  font-size: 29px;
+}
+
+.lavanderia-heading p,
+.lavanderia-panel-header p {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.lavanderia-primary {
+  border: none;
+  border-radius: 9px;
+  padding: 13px 20px;
+  background: #1e3a5f;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lavanderia-tarifa {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-top: 28px;
+  padding: 24px;
+  background: #edf5ff;
+  border: 1px solid #cfe1f8;
+  border-radius: 12px;
+}
+
+.lavanderia-tarifa div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lavanderia-tarifa span {
+  color: #475569;
+  font-size: 13px;
+}
+
+.lavanderia-tarifa strong {
+  font-size: 30px;
+  color: #1e3a5f;
+}
+
+.lavanderia-tarifa p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.lavanderia-tarifa-badge {
+  padding: 8px 14px;
+  border-radius: 20px;
+  background: white;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lavanderia-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin: 28px 0;
+}
+
+.lavanderia-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  background: white;
+  border: 1px solid #e5eaf0;
+  border-radius: 12px;
+}
+
+.lavanderia-stat span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.lavanderia-stat strong {
+  font-size: 27px;
+}
+
+.lavanderia-panel {
+  background: white;
+  border: 1px solid #e5eaf0;
+  border-radius: 13px;
+  overflow: hidden;
+}
+
+.lavanderia-panel-header {
+  padding: 24px;
+}
+
+.lavanderia-panel-header h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.lavanderia-filtros {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.lavanderia-filtros input,
+.lavanderia-filtros select {
+  padding: 12px;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  background: white;
+  color: #1e293b;
+}
+
+.lavanderia-filtros input {
+  min-width: 250px;
+}
+
+.lavanderia-table-wrap {
+  overflow-x: auto;
+}
+
+.lavanderia-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.lavanderia-table th {
+  padding: 16px;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.lavanderia-table td {
+  padding: 18px 16px;
+  border-top: 1px solid #edf0f4;
+  vertical-align: top;
+}
+
+.lavanderia-table td small {
+  display: block;
+  margin-top: 5px;
+  color: #64748b;
+}
+
+.lavanderia-detalles {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.lavanderia-detalles span {
+  color: #334155;
+}
+
+.lavanderia-estado {
+  padding: 9px;
+  border: 1px solid #d1d9e2;
+  border-radius: 8px;
+  background: white;
+  color: #334155;
+}
+
+.lavanderia-vacio,
+.lavanderia-nota {
+  padding: 20px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.lavanderia-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.lavanderia-modal {
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 28px;
+  background: white;
+  border-radius: 14px;
+}
+
+.lavanderia-modal-header h2 {
+  margin: 0;
+  font-size: 21px;
+}
+
+.lavanderia-modal-header button {
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.lavanderia-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 22px;
+}
+
+.lavanderia-modal label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.lavanderia-modal input,
+.lavanderia-modal select,
+.lavanderia-modal textarea {
+  padding: 11px;
+  border: 1px solid #d1d9e2;
+  border-radius: 8px;
+  background: white;
+  color: #1e293b;
+  font-family: inherit;
+}
+
+.lavanderia-modal textarea {
+  resize: vertical;
+}
+
+.lavanderia-prendas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.lavanderia-prendas-header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.lavanderia-add {
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #1e3a5f;
+  cursor: pointer;
+}
+
+.lavanderia-prenda-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 85px 40px;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.lavanderia-prenda-row select,
+.lavanderia-prenda-row input {
+  min-width: 0;
+  width: 100%;
+}
+
+.lavanderia-remove {
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  background: #fff1f2;
+  color: #b91c1c;
+  cursor: pointer;
+}
+
+.lavanderia-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.lavanderia-resumen > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lavanderia-resumen span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.lavanderia-resumen-total {
+  padding-top: 12px;
+  border-top: 1px solid #dbe2ea;
+}
+
+.lavanderia-resumen-total strong {
+  font-size: 23px;
+  color: #1e3a5f;
+}
+
+.lavanderia-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.lavanderia-cancel {
+  border: 1px solid #d1d9e2;
+  border-radius: 8px;
+  padding: 12px 18px;
+  background: white;
+  color: #334155;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .lavanderia-page {
+    padding: 20px;
+  }
+
+  .lavanderia-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .lavanderia-heading,
+  .lavanderia-panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 500px) {
+  .lavanderia-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .lavanderia-tarifa {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .lavanderia-prenda-row {
+    grid-template-columns: minmax(0, 1fr) 65px 36px;
+    gap: 6px;
+  }
+}

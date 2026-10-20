@@ -1,0 +1,243 @@
+
+.pedidos-page {
+  min-height: 100vh;
+  background: #f6f8fb;
+  color: #1e293b;
+  padding: 38px;
+}
+
+.pedidos-heading,
+.pedidos-panel-heading,
+.pedidos-modal-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.pedidos-eyebrow {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.pedidos-heading h1 {
+  margin: 12px 0 8px;
+  font-size: 29px;
+}
+
+.pedidos-heading p,
+.pedidos-panel-heading p {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.pedidos-primary {
+  border: none;
+  background: #1e3a5f;
+  color: white;
+  padding: 13px 20px;
+  border-radius: 9px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pedidos-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin: 30px 0;
+}
+
+.pedidos-stat {
+  background: white;
+  border: 1px solid #e5eaf0;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pedidos-stat span {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.pedidos-stat strong {
+  font-size: 27px;
+}
+
+.pedidos-panel {
+  background: white;
+  border: 1px solid #e5eaf0;
+  border-radius: 13px;
+  overflow: hidden;
+}
+
+.pedidos-panel-heading {
+  padding: 24px;
+}
+
+.pedidos-panel-heading h2 {
+  font-size: 18px;
+  margin: 0 0 6px;
+}
+
+.pedidos-panel-heading input {
+  width: 320px;
+  max-width: 100%;
+  border: 1px solid #dbe2ea;
+  border-radius: 8px;
+  padding: 12px;
+  background: white;
+  color: #1e293b;
+}
+
+.pedidos-table-wrap {
+  overflow-x: auto;
+}
+
+.pedidos-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.pedidos-table th {
+  background: #f8fafc;
+  padding: 16px;
+  color: #64748b;
+}
+
+.pedidos-table td {
+  padding: 18px 16px;
+  border-top: 1px solid #edf0f4;
+}
+
+.pedidos-table td small {
+  display: block;
+  margin-top: 5px;
+  color: #64748b;
+}
+
+.pedidos-status-select {
+  padding: 9px;
+  border: 1px solid #d1d9e2;
+  border-radius: 8px;
+  background: white;
+  color: #334155;
+}
+
+.pedidos-whatsapp {
+  border: 1px solid #86c9a0;
+  color: #166534;
+  background: #f0fdf4;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.pedidos-empty,
+.pedidos-notice {
+  padding: 20px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.pedidos-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.pedidos-modal {
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: white;
+  padding: 28px;
+  border-radius: 14px;
+}
+
+.pedidos-modal-heading h2 {
+  margin: 0;
+}
+
+.pedidos-modal-heading button {
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.pedidos-modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 22px;
+}
+
+.pedidos-modal label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pedidos-modal input,
+.pedidos-modal select,
+.pedidos-modal textarea {
+  padding: 11px;
+  border: 1px solid #d1d9e2;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: white;
+  color: #1e293b;
+  font-family: inherit;
+}
+
+.pedidos-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.pedidos-cancel {
+  border: 1px solid #d1d9e2;
+  background: white;
+  color: #334155;
+  border-radius: 8px;
+  padding: 12px 18px;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .pedidos-page {
+    padding: 20px;
+  }
+
+  .pedidos-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pedidos-heading,
+  .pedidos-panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 500px) {
+  .pedidos-stats {
+    grid-template-columns: 1fr;
+  }
+}
