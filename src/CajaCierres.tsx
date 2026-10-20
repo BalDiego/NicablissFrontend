@@ -68,7 +68,10 @@ function CajaCierres() {
   }, []);
 
   useEffect(() => {
-    cargarDatosCaja();
+    const timer = setTimeout(() => {
+      cargarDatosCaja();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [cargarDatosCaja]);
 
   const movimientos = sesion?.movimientos ?? [];

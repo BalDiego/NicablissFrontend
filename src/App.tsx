@@ -68,8 +68,9 @@ function App() {
       setAutenticado(true);
       setPantalla("dashboard");
       setError("");
-    } catch (err: any) {
-      setError(err.message || "Usuario o contraseña incorrectos");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Usuario o contraseña incorrectos";
+      setError(msg);
     } finally {
       setCargando(false);
     }

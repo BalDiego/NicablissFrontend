@@ -68,7 +68,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   };
 
   useEffect(() => {
-    cargarDatos();
+    const timer = setTimeout(() => {
+      cargarDatos();
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const stats = metrics?.stats || fallbackStats;
