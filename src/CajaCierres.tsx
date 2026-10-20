@@ -509,7 +509,7 @@ function CajaCierres() {
                 type="button"
                 onClick={() => setMostrarApertura(false)}
               >
-                ✕
+                x
               </button>
             </div>
 
@@ -577,7 +577,7 @@ function CajaCierres() {
                 type="button"
                 onClick={() => setMostrarMovimiento(false)}
               >
-                ✕
+                x
               </button>
             </div>
 
@@ -704,7 +704,7 @@ function CajaCierres() {
                 type="button"
                 onClick={() => setMostrarCierre(false)}
               >
-                ✕
+                x
               </button>
             </div>
 

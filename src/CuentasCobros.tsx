@@ -284,7 +284,7 @@ function CuentasCobros() {
                 type="button"
                 onClick={() => setMostrarFormulario(false)}
               >
-                ✕
+                x
               </button>
             </div>
             <form onSubmit={registrarCuenta}>
@@ -377,7 +377,7 @@ function CuentasCobros() {
                   setCuentaParaCobro(null);
                 }}
               >
-                ✕
+                x
               </button>
             </div>
             <form onSubmit={ejecutarCobro}>

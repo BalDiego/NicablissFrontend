@@ -298,7 +298,7 @@ function PedidosAlimentos() {
                 type="button"
                 onClick={() => setMostrarFormulario(false)}
               >
-                ✕
+                x
               </button>
             </div>
 

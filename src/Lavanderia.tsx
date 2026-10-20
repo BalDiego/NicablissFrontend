@@ -470,7 +470,7 @@ function Lavanderia() {
                 onClick={cerrarFormulario}
                 aria-label="Cerrar"
               >
-                ✕
+                x
               </button>
             </div>
 
@@ -581,7 +581,7 @@ function Lavanderia() {
                     onClick={() => eliminarPrenda(indice)}
                     aria-label="Eliminar prenda"
                   >
-                    ✕
+                    x
                   </button>
                 </div>
               ))}
