@@ -1,89 +1,38 @@
+import { useState, useEffect } from "react";
 import type { Pantalla } from "./types";
+import { dashboardService } from "./services/dashboard.service";
+import { foodOrderService } from "./services/foodOrder.service";
+import type { DashboardMetrics, FoodOrder } from "./services/types";
 import "./App.css";
 
-const stats = [
+const fallbackStats = [
   {
     label: "Ingresos del día",
-    value: "$ 284.00",
-    detail: "Pagos registrados hoy",
-    icon: "$",
+    value: "$ 0.00",
+    detail: "Pagos registrados",
+    code: "revenue",
     className: "stat-green",
   },
   {
     label: "Cuentas abiertas",
-    value: "8",
+    value: "0",
     detail: "Huéspedes con saldo activo",
-    icon: "≡",
+    code: "accounts",
     className: "stat-blue",
   },
   {
     label: "Pedidos pendientes",
-    value: "3",
+    value: "0",
     detail: "Solicitudes por atender",
-    icon: "↗",
+    code: "orders",
     className: "stat-orange",
   },
   {
     label: "Lavandería pendiente",
-    value: "2",
+    value: "0",
     detail: "Solicitudes en proceso",
-    icon: "◈",
+    code: "laundry",
     className: "stat-purple",
-  },
-];
-
-const transactions = [
-  {
-    guest: "María González",
-    service: "Hospedaje",
-    date: "Hoy, 09:42 AM",
-    amount: "$ 40.00",
-    status: "Completado",
-  },
-  {
-    guest: "Carlos Mendoza",
-    service: "Alimentación",
-    date: "Hoy, 09:18 AM",
-    amount: "$ 12.50",
-    status: "Completado",
-  },
-  {
-    guest: "Sophie Laurent",
-    service: "Lavandería",
-    date: "Hoy, 08:56 AM",
-    amount: "$ 8.00",
-    status: "Pendiente",
-  },
-  {
-    guest: "James Wilson",
-    service: "Hospedaje",
-    date: "Hoy, 08:30 AM",
-    amount: "$ 20.00",
-    status: "Completado",
-  },
-];
-
-const pendingOrders = [
-  {
-    id: "#PED-024",
-    guest: "María González",
-    detail: "2 desayunos americanos",
-    time: "09:35 AM",
-    status: "Pendiente",
-  },
-  {
-    id: "#PED-023",
-    guest: "Carlos Mendoza",
-    detail: "1 sándwich + 1 café",
-    time: "09:20 AM",
-    status: "Preparando",
-  },
-  {
-    id: "#PED-022",
-    guest: "Sophie Laurent",
-    detail: "1 desayuno continental",
-    time: "09:05 AM",
-    status: "Listo",
   },
 ];
 
@@ -92,27 +41,100 @@ type DashboardProps = {
 };
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [pendingOrders, setPendingOrders] = useState<FoodOrder[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const cargarDatos = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [metr, orders] = await Promise.all([
+        dashboardService.getMetrics(),
+        foodOrderService.getAll(),
+      ]);
+      setMetrics(metr);
+      const pendientes = orders.filter(
+        (o) => o.estado !== "Entregado" && o.estado !== "Cancelado"
+      );
+      setPendingOrders(pendientes.length > 0 ? pendientes.slice(0, 3) : orders.slice(0, 3));
+    } catch (err: unknown) {
+      const mensaje = err instanceof Error ? err.message : "Error al conectar con el servidor.";
+      setError(mensaje);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  const stats = metrics?.stats || fallbackStats;
+  const transactions = metrics?.recentTransactions || [];
+
   return (
     <div className="dashboard-content">
       <section className="page-heading">
         <div>
-          <span className="page-eyebrow">SÁBADO · RECEPCIÓN</span>
+          <span className="page-eyebrow">OPERACIONES · RECEPCIÓN</span>
           <h2>Resumen general</h2>
           <p>
-            Bienvenido al panel de gestión de Nicabliss. Aquí tienes el
-            resumen de las operaciones del día.
+            Panel de control ejecutivo de Nicabliss Hotel. Indicadores y transacciones en tiempo real.
           </p>
         </div>
 
-        <button
-          type="button"
-          className="date-button"
-          onClick={() => window.print()}
-        >
-          <span>🖨️</span>
-          Reporte / Imprimir
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            type="button"
+            className="date-button"
+            onClick={cargarDatos}
+            disabled={loading}
+          >
+            {loading ? "Sincronizando..." : "Actualizar datos"}
+          </button>
+          <button
+            type="button"
+            className="date-button"
+            onClick={() => window.print()}
+          >
+            Reporte / Imprimir
+          </button>
+        </div>
       </section>
+
+      {error && (
+        <div
+          style={{
+            padding: "1rem",
+            marginBottom: "1.5rem",
+            borderRadius: "8px",
+            backgroundColor: "rgba(220, 38, 38, 0.1)",
+            border: "1px solid rgba(220, 38, 38, 0.3)",
+            color: "#ef4444",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>Error de conexión: {error}</span>
+          <button
+            type="button"
+            onClick={cargarDatos}
+            style={{
+              padding: "0.4rem 0.8rem",
+              background: "#ef4444",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       <section className="stats-grid" aria-label="Indicadores principales">
         {stats.map((stat) => (
@@ -120,10 +142,18 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             <div className="stat-card-top">
               <span className="stat-label">{stat.label}</span>
               <span className={`stat-icon ${stat.className}`}>
-                {stat.icon}
+                {stat.code === "revenue"
+                  ? "$"
+                  : stat.code === "accounts"
+                  ? "≡"
+                  : stat.code === "orders"
+                  ? "↗"
+                  : "◈"}
               </span>
             </div>
-            <strong className="stat-value">{stat.value}</strong>
+            <strong className="stat-value">
+              {loading && !metrics ? "..." : stat.value}
+            </strong>
             <span className="stat-detail">{stat.detail}</span>
           </article>
         ))}
@@ -134,7 +164,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           <div className="panel-header">
             <div>
               <h3>Transacciones recientes</h3>
-              <p>Últimos movimientos registrados</p>
+              <p>Últimos movimientos registrados en el servidor</p>
             </div>
             <a
               href="#cuentas"
@@ -160,42 +190,53 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((transaction) => (
-                  <tr key={`${transaction.guest}-${transaction.service}`}>
-                    <td>
-                      <div className="guest-cell">
-                        <span className="guest-avatar">
-                          {transaction.guest
-                            .split(" ")
-                            .map((part) => part[0])
-                            .slice(0, 2)
-                            .join("")}
-                        </span>
-                        <strong>{transaction.guest}</strong>
-                      </div>
-                    </td>
-                    <td>{transaction.service}</td>
-                    <td className="date-cell">{transaction.date}</td>
-                    <td className="amount-cell">{transaction.amount}</td>
-                    <td>
-                      <span
-                        className={`status-pill ${
-                          transaction.status === "Completado"
-                            ? "status-complete"
-                            : "status-pending"
-                        }`}
-                      >
-                        {transaction.status}
-                      </span>
+                {transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)" }}>
+                      {loading ? "Cargando transacciones..." : "No hay transacciones registradas."}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  transactions.map((transaction, idx) => (
+                    <tr key={`${transaction.guest}-${transaction.service}-${idx}`}>
+                      <td>
+                        <div className="guest-cell">
+                          <span className="guest-avatar">
+                            {transaction.guest
+                              ? transaction.guest
+                                  .split(" ")
+                                  .map((part) => part[0])
+                                  .slice(0, 2)
+                                  .join("")
+                                  .toUpperCase()
+                              : "GH"}
+                          </span>
+                          <strong>{transaction.guest}</strong>
+                        </div>
+                      </td>
+                      <td>{transaction.service}</td>
+                      <td className="date-cell">{transaction.date}</td>
+                      <td className="amount-cell">{transaction.amount}</td>
+                      <td>
+                        <span
+                          className={`status-pill ${
+                            transaction.status === "Completado" || transaction.status === "Pagado"
+                              ? "status-complete"
+                              : "status-pending"
+                          }`}
+                        >
+                          {transaction.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
 
           <div className="panel-footer">
-            Mostrando 4 transacciones de ejemplo
+            {loading ? "Sincronizando con Nicabliss API..." : `Mostrando ${transactions.length} transacciones recientes`}
           </div>
         </article>
 
@@ -203,7 +244,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           <div className="panel-header">
             <div>
               <h3>Pedidos de alimentos</h3>
-              <p>Seguimiento de solicitudes</p>
+              <p>Seguimiento de solicitudes de cocina</p>
             </div>
             <a
               href="#pedidos"
@@ -218,30 +259,36 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           </div>
 
           <div className="orders-list">
-            {pendingOrders.map((order) => (
-              <div className="order-item" key={order.id}>
-                <div className="order-top">
-                  <strong>{order.id}</strong>
-                  <span
-                    className={`order-status ${
-                      order.status === "Pendiente"
-                        ? "order-waiting"
-                        : order.status === "Preparando"
+            {pendingOrders.length === 0 ? (
+              <div style={{ padding: "1.5rem", textAlign: "center", color: "var(--text-muted)" }}>
+                {loading ? "Cargando pedidos..." : "No hay pedidos pendientes en este momento."}
+              </div>
+            ) : (
+              pendingOrders.map((order) => (
+                <div className="order-item" key={order.id}>
+                  <div className="order-top">
+                    <strong>{order.orderCode || `#PED-${order.id}`}</strong>
+                    <span
+                      className={`order-status ${
+                        order.estado === "Pendiente"
+                          ? "order-waiting"
+                          : order.estado === "En preparación" || order.estado === "En camino"
                           ? "order-preparing"
                           : "order-ready"
-                    }`}
-                  >
-                    {order.status}
-                  </span>
+                      }`}
+                    >
+                      {order.estado}
+                    </span>
+                  </div>
+                  <div className="order-guest">{order.huesped} - {order.habitacion}</div>
+                  <div className="order-detail">{order.productos}</div>
+                  <div className="order-time">
+                    <span>Fecha / Registro</span>
+                    <span>{order.fecha}</span>
+                  </div>
                 </div>
-                <div className="order-guest">{order.guest}</div>
-                <div className="order-detail">{order.detail}</div>
-                <div className="order-time">
-                  <span>Hora de solicitud</span>
-                  <span>{order.time}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </article>
       </section>
@@ -249,17 +296,18 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       <section className="bottom-notice">
         <div className="notice-icon">i</div>
         <div>
-          <strong>Información del sistema</strong>
+          <strong>Estado de sincronización</strong>
           <p>
-            Los datos mostrados son de demostración. Las cifras y operaciones
-            reales se habilitarán al conectar el backend.
+            Servicios conectados con Nicabliss API. Turno de caja:{" "}
+            {metrics?.cashRegisterActive ? "Activo" : "Cerrado"} · Huéspedes activos:{" "}
+            {metrics?.activeStays ?? 0}
           </p>
         </div>
       </section>
 
       <footer className="dashboard-footer">
-        <span>© 2026 Nicabliss · Sistema de gestión interna</span>
-        <span>Panel administrativo</span>
+        <span>© 2026 Nicabliss Hotel · Sistema de gestión empresarial</span>
+        <span>Panel administrativo centralizado</span>
       </footer>
     </div>
   );
