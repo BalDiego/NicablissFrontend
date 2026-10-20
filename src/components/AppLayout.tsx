@@ -13,34 +13,34 @@ const navItems: NavItem[] = [
   {
     id: "dashboard",
     label: "Dashboard",
-    icon: "▦",
+    icon: "01",
   },
   {
     id: "huespedes",
     label: "Huéspedes y estancias",
-    icon: "♙",
+    icon: "02",
   },
   {
     id: "cobros",
     label: "Cuentas y cobros",
-    icon: "$",
+    icon: "03",
   },
   {
     id: "pedidos",
     label: "Pedidos de alimentos",
-    icon: "▤",
+    icon: "04",
     badge: 3,
   },
   {
     id: "lavanderia",
     label: "Lavandería",
-    icon: "◈",
+    icon: "05",
     badge: 2,
   },
   {
     id: "caja",
     label: "Caja y cierres",
-    icon: "▣",
+    icon: "06",
   },
 ];
 
@@ -56,7 +56,7 @@ type Notification = {
 const initialNotifications: Notification[] = [
   {
     id: 1,
-    icon: "🍽",
+    icon: "P",
     title: "Nueva orden de cocina #PED-024",
     desc: "Habitación 01 solicitó 2 desayunos americanos",
     time: "Hace 10 min",
@@ -64,7 +64,7 @@ const initialNotifications: Notification[] = [
   },
   {
     id: 2,
-    icon: "🧺",
+    icon: "L",
     title: "Lavandería lista para entrega",
     desc: "Sophie Laurent (Hab. 07) - 2 prendas listas",
     time: "Hace 25 min",
@@ -72,7 +72,7 @@ const initialNotifications: Notification[] = [
   },
   {
     id: 3,
-    icon: "💰",
+    icon: "C",
     title: "Cobro registrado",
     desc: "Pago completo recibido de María González ($40.00)",
     time: "Hace 1 hora",
