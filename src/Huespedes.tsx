@@ -6,6 +6,7 @@ import "./Huespedes.css";
 function Huespedes() {
   const [huespedes, setHuespedes] = useState<Guest[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState<"Todos" | "Activo" | "Reservado" | "Finalizado">("Todos");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -87,18 +88,27 @@ function Huespedes() {
     }
   };
 
-  const filtrados = huespedes;
+  // Filtrado local según la pestaña seleccionada
+  const filtrados = huespedes.filter((h) => {
+    if (filtroEstado !== "Todos" && h.estado !== filtroEstado) {
+      return false;
+    }
+    return true;
+  });
+
+  const totalActivos = huespedes.filter((h) => h.estado === "Activo").length;
+  const totalReservados = huespedes.filter((h) => h.estado === "Reservado").length;
+  const totalFinalizados = huespedes.filter((h) => h.estado === "Finalizado").length;
 
   return (
     <main className="huespedes-page">
+      {/* Encabezado */}
       <div className="huespedes-heading">
         <div>
-          <span className="huespedes-eyebrow">
-            NICABLISS / OPERACIONES
-          </span>
+          <span className="huespedes-eyebrow">NICABLISS / OPERACIONES</span>
           <h1>Huéspedes y estancias</h1>
           <p>
-            Consulta y administra los huéspedes registrados en el hotel.
+            Consulta, filtra y administra los huéspedes registrados en el hotel en tiempo real.
           </p>
         </div>
 
@@ -106,7 +116,7 @@ function Huespedes() {
           className="huespedes-primary"
           onClick={() => setMostrarFormulario(true)}
         >
-          + Nuevo huésped
+          <span>+</span> Nuevo huésped
         </button>
       </div>
 
@@ -142,49 +152,94 @@ function Huespedes() {
         </div>
       )}
 
+      {/* Tarjetas KPI Interactivas con Clic */}
       <div className="huespedes-stats">
-        <div className="huespedes-stat">
+        <div
+          className={`huespedes-stat ${filtroEstado === "Todos" ? "is-active" : ""}`}
+          onClick={() => setFiltroEstado("Todos")}
+          title="Ver todos los registros"
+        >
           <span>Total de registros</span>
           <strong>{huespedes.length}</strong>
         </div>
 
-        <div className="huespedes-stat">
+        <div
+          className={`huespedes-stat ${filtroEstado === "Activo" ? "is-active" : ""}`}
+          onClick={() => setFiltroEstado("Activo")}
+          title="Filtrar por estancias activas"
+        >
           <span>Estancias activas</span>
-          <strong>
-            {huespedes.filter((h) => h.estado === "Activo").length}
-          </strong>
+          <strong style={{ color: "#16a34a" }}>{totalActivos}</strong>
         </div>
 
-        <div className="huespedes-stat">
+        <div
+          className={`huespedes-stat ${filtroEstado === "Reservado" ? "is-active" : ""}`}
+          onClick={() => setFiltroEstado("Reservado")}
+          title="Filtrar por reservaciones"
+        >
           <span>Reservados</span>
-          <strong>
-            {huespedes.filter((h) => h.estado === "Reservado").length}
-          </strong>
+          <strong style={{ color: "#2563eb" }}>{totalReservados}</strong>
         </div>
 
-        <div className="huespedes-stat">
+        <div
+          className={`huespedes-stat ${filtroEstado === "Finalizado" ? "is-active" : ""}`}
+          onClick={() => setFiltroEstado("Finalizado")}
+          title="Filtrar por estancias finalizadas"
+        >
           <span>Finalizados</span>
-          <strong>
-            {huespedes.filter((h) => h.estado === "Finalizado").length}
-          </strong>
+          <strong style={{ color: "#64748b" }}>{totalFinalizados}</strong>
         </div>
       </div>
 
+      {/* Panel con Barra de Búsqueda y Pestañas de Filtro */}
       <section className="huespedes-panel">
         <div className="huespedes-panel-header">
-          <div>
-            <h2>Listado de huéspedes</h2>
-            <p>Registros en tiempo real conectados con el backend</p>
-          </div>
+          <div className="huespedes-toolbar">
+            <div className="huespedes-search-box">
+              <span className="huespedes-search-icon">🔍</span>
+              <input
+                type="search"
+                placeholder="Buscar por nombre, documento o habitación..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+            </div>
 
-          <input
-            type="search"
-            placeholder="Buscar huésped, documento o habitación..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-          />
+            {/* Pestañas de Filtro Claras y Visibles */}
+            <div className="huespedes-filter-tabs">
+              <button
+                type="button"
+                className={`huespedes-tab-btn ${filtroEstado === "Todos" ? "is-active" : ""}`}
+                onClick={() => setFiltroEstado("Todos")}
+              >
+                Todos ({huespedes.length})
+              </button>
+              <button
+                type="button"
+                className={`huespedes-tab-btn tab-activo ${filtroEstado === "Activo" ? "is-active" : ""}`}
+                onClick={() => setFiltroEstado("Activo")}
+              >
+                🟢 Activos ({totalActivos})
+              </button>
+              <button
+                type="button"
+                className={`huespedes-tab-btn tab-reservado ${filtroEstado === "Reservado" ? "is-active" : ""}`}
+                onClick={() => setFiltroEstado("Reservado")}
+              >
+                🔵 Reservados ({totalReservados})
+              </button>
+              <button
+                type="button"
+                className={`huespedes-tab-btn tab-finalizado ${filtroEstado === "Finalizado" ? "is-active" : ""}`}
+                onClick={() => setFiltroEstado("Finalizado")}
+              >
+                ⚪ Finalizados ({totalFinalizados})
+              </button>
+            </div>
+          </div>
         </div>
 
+        {/* Tabla */}
         <div className="huespedes-table-wrap">
           <table className="huespedes-table">
             <thead>
@@ -194,8 +249,8 @@ function Huespedes() {
                 <th>Habitación</th>
                 <th>Entrada</th>
                 <th>Salida</th>
-                <th>Estado</th>
-                <th>Acción</th>
+                <th>Estado Actual</th>
+                <th>Cambiar Estado</th>
               </tr>
             </thead>
 
@@ -213,20 +268,15 @@ function Huespedes() {
                     <span
                       className={`huespedes-status status-${huesped.estado.toLowerCase()}`}
                     >
+                      {huesped.estado === "Activo" && "🟢 "}
+                      {huesped.estado === "Reservado" && "🔵 "}
+                      {huesped.estado === "Finalizado" && "⚪ "}
                       {huesped.estado}
                     </span>
                   </td>
                   <td>
                     <select
-                      style={{
-                        padding: "0.25rem 0.5rem",
-                        borderRadius: "4px",
-                        border: "1px solid var(--border-color, #334155)",
-                        background: "var(--bg-surface, #1e293b)",
-                        color: "inherit",
-                        fontSize: "0.85rem",
-                        cursor: "pointer",
-                      }}
+                      className="huespedes-action-select"
                       value={huesped.estado}
                       onChange={(e) =>
                         cambiarEstado(
@@ -234,10 +284,12 @@ function Huespedes() {
                           e.target.value as "Activo" | "Finalizado" | "Reservado"
                         )
                       }
+                      title="Cambiar estado de estancia del huésped"
+                      aria-label="Cambiar estado"
                     >
-                      <option value="Activo">Activo</option>
-                      <option value="Reservado">Reservado</option>
-                      <option value="Finalizado">Finalizado</option>
+                      <option value="Activo">✓ Activo</option>
+                      <option value="Reservado">⏳ Reservado</option>
+                      <option value="Finalizado">🏁 Finalizado</option>
                     </select>
                   </td>
                 </tr>
@@ -246,34 +298,37 @@ function Huespedes() {
           </table>
 
           {loading && (
-            <p style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)" }}>
+            <p style={{ textAlign: "center", padding: "1.5rem", color: "#64748b" }}>
               Cargando huéspedes...
             </p>
           )}
 
           {!loading && filtrados.length === 0 && (
             <p className="huespedes-empty">
-              No se encontraron huéspedes registrados.
+              No se encontraron huéspedes con los filtros actuales.
             </p>
           )}
         </div>
       </section>
 
+      {/* Modal Registrar Huésped */}
       {mostrarFormulario && (
-        <div className="huespedes-modal-overlay">
-          <div className="huespedes-modal">
+        <div className="huespedes-modal-overlay" onClick={() => !submitting && setMostrarFormulario(false)}>
+          <div className="huespedes-modal" onClick={(e) => e.stopPropagation()}>
             <div className="huespedes-modal-heading">
-              <h2>Registrar huésped</h2>
+              <h2>Registrar nuevo huésped</h2>
               <button
                 type="button"
                 onClick={() => setMostrarFormulario(false)}
+                title="Cerrar ventana"
+                aria-label="Cerrar ventana"
               >
-                x
+                ✕
               </button>
             </div>
 
             <form onSubmit={registrarHuesped}>
-              <label>Nombre completo</label>
+              <label>Nombre completo *</label>
               <input
                 required
                 value={nuevo.nombre}
@@ -283,7 +338,7 @@ function Huespedes() {
                 placeholder="Nombre y apellido"
               />
 
-              <label>Documento de identidad</label>
+              <label>Documento de identidad *</label>
               <input
                 required
                 value={nuevo.documento}
@@ -293,7 +348,7 @@ function Huespedes() {
                 placeholder="Cédula o Pasaporte"
               />
 
-              <label>Habitación</label>
+              <label>Habitación asignada *</label>
               <select
                 required
                 value={nuevo.habitacion}
@@ -309,7 +364,7 @@ function Huespedes() {
                 ))}
               </select>
 
-              <label>Fecha de entrada</label>
+              <label>Fecha de entrada *</label>
               <input
                 type="date"
                 required
@@ -319,7 +374,7 @@ function Huespedes() {
                 }
               />
 
-              <label>Fecha de salida</label>
+              <label>Fecha de salida *</label>
               <input
                 type="date"
                 required

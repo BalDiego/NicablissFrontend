@@ -1,18 +1,20 @@
+/* =========================================================
+   NICABLISS - HUÉSPEDES Y ESTANCIAS (CLEAN CONTRAST & RESPONSIVE)
+   ========================================================= */
 
 .huespedes-page {
-  min-height: 100vh;
-  background: #f6f8fb;
-  padding: 38px;
+  width: 100%;
+  box-sizing: border-box;
   color: #1e293b;
+  font-family: inherit;
 }
 
-.huespedes-heading,
-.huespedes-panel-header,
-.huespedes-modal-heading {
+.huespedes-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
+  margin-bottom: 24px;
 }
 
 .huespedes-eyebrow {
@@ -20,233 +22,489 @@
   font-weight: 700;
   letter-spacing: 2px;
   color: #64748b;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
 }
 
 .huespedes-heading h1 {
-  font-size: 29px;
-  margin: 12px 0 8px;
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 6px;
+  letter-spacing: -0.5px;
 }
 
-.huespedes-heading p,
-.huespedes-panel-header p {
+.huespedes-heading p {
   color: #64748b;
-  font-size: 14px;
+  font-size: 13.5px;
+  margin: 0;
+  max-width: 650px;
 }
 
 .huespedes-primary {
-  background: #1e3a5f;
-  color: white;
+  background: linear-gradient(135deg, #1e3a5f 0%, #0f233d 100%);
+  color: #ffffff;
   border: 0;
-  border-radius: 9px;
-  padding: 13px 20px;
+  border-radius: 10px;
+  padding: 12px 20px;
   font-weight: 600;
+  font-size: 13.5px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(30, 58, 95, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
 }
 
 .huespedes-primary:hover {
-  background: #294d7c;
+  background: linear-gradient(135deg, #284c7a 0%, #152d4e 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(30, 58, 95, 0.3);
 }
 
+.huespedes-primary:active {
+  transform: translateY(0);
+}
+
+/* Tarjetas de Métricas KPI */
 .huespedes-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-  margin: 30px 0;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .huespedes-stat {
-  background: white;
-  border: 1px solid #e5eaf0;
-  border-radius: 12px;
-  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.huespedes-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.huespedes-stat.is-active {
+  border-color: #1e3a5f;
+  box-shadow: 0 0 0 2px rgba(30, 58, 95, 0.18);
+  background: #fbfdfc;
 }
 
 .huespedes-stat span {
   color: #64748b;
-  font-size: 13px;
+  font-size: 12.5px;
+  font-weight: 500;
 }
 
 .huespedes-stat strong {
-  font-size: 30px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
 }
 
+/* Panel Principal de Huéspedes */
 .huespedes-panel {
-  background: white;
-  border: 1px solid #e5eaf0;
-  border-radius: 13px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   overflow: hidden;
 }
 
 .huespedes-panel-header {
-  padding: 24px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .huespedes-panel-header h2 {
-  font-size: 18px;
-  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 3px;
 }
 
-.huespedes-panel-header input {
-  width: 330px;
-  max-width: 100%;
-  border: 1px solid #dbe2ea;
+.huespedes-panel-header p {
+  color: #64748b;
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.huespedes-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.huespedes-search-box {
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+  max-width: 380px;
+}
+
+.huespedes-search-box input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
-  padding: 12px;
-  background: white;
-  color: #1e293b;
+  padding: 9px 14px 9px 36px;
+  font-size: 13.5px;
+  background: #f8fafc;
+  color: #0f172a;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
 }
 
-.huespedes-table-wrap {
+.huespedes-search-box input:focus {
+  outline: none;
+  border-color: #1e3a5f;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.12);
+}
+
+.huespedes-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* Pestañas de Filtro por Estado (Visibilidad Óptima) */
+.huespedes-filter-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
   overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.huespedes-tab-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #64748b;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.huespedes-tab-btn:hover:not(.is-active) {
+  color: #0f172a;
+}
+
+.huespedes-tab-btn.is-active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.huespedes-tab-btn.tab-activo.is-active {
+  color: #15803d;
+}
+
+.huespedes-tab-btn.tab-reservado.is-active {
+  color: #1d4ed8;
+}
+
+.huespedes-tab-btn.tab-finalizado.is-active {
+  color: #475569;
+}
+
+/* Tabla de Huéspedes */
+.huespedes-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .huespedes-table {
   width: 100%;
+  min-width: 680px;
   border-collapse: collapse;
   text-align: left;
-  font-size: 13px;
+  font-size: 13.5px;
 }
 
 .huespedes-table th {
   background: #f8fafc;
   color: #64748b;
-  font-weight: 600;
-  padding: 16px;
+  font-weight: 700;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 18px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
 }
 
 .huespedes-table td {
-  padding: 18px 16px;
-  border-top: 1px solid #edf0f4;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.huespedes-table tr:hover td {
+  background: #fafcff;
 }
 
 .huespedes-name {
   font-weight: 700;
+  color: #0f172a;
 }
 
+/* Insignias de Estado */
 .huespedes-status {
-  display: inline-block;
-  padding: 6px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
   border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .status-activo {
   background: #dcfce7;
-  color: #166534;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
 }
 
 .status-finalizado {
   background: #f1f5f9;
   color: #475569;
+  border: 1px solid #e2e8f0;
 }
 
 .status-reservado {
   background: #dbeafe;
   color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+/* Selector de Acción en la Tabla (Alta Visibilidad y Legibilidad) */
+.huespedes-action-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  outline: none;
+}
+
+.huespedes-action-select:hover {
+  border-color: #1e3a5f;
+  background-color: #f8fafc;
+}
+
+.huespedes-action-select:focus {
+  border-color: #1e3a5f;
+  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.14);
+}
+
+.huespedes-action-select option {
+  background-color: #ffffff;
+  color: #0f172a;
+  padding: 8px;
 }
 
 .huespedes-empty {
-  padding: 25px;
+  padding: 40px;
   text-align: center;
   color: #64748b;
+  font-size: 13.5px;
 }
 
+/* Modal Registrar Huésped (Totalmente Responsivo) */
 .huespedes-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
-  background: rgba(15, 23, 42, 0.55);
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px;
+  padding: 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .huespedes-modal {
-  background: white;
-  border-radius: 14px;
-  padding: 28px;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 22px 26px;
   width: 100%;
-  max-width: 500px;
-  max-height: 90vh;
+  max-width: 520px;
+  max-height: calc(100dvh - 32px);
   overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  margin: auto;
+  box-sizing: border-box;
 }
 
 .huespedes-modal-heading {
-  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 12px;
 }
 
 .huespedes-modal-heading h2 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
   margin: 0;
 }
 
 .huespedes-modal-heading button {
   border: none;
   background: transparent;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
-  color: #475569;
+  color: #94a3b8;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.huespedes-modal-heading button:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .huespedes-modal form {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 12px;
 }
 
 .huespedes-modal label {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
+  color: #334155;
+  margin-bottom: -4px;
 }
 
 .huespedes-modal input,
 .huespedes-modal select {
-  padding: 11px;
-  border: 1px solid #d1d9e2;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
-  margin-bottom: 10px;
-  background: white;
-  color: #1e293b;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13.5px;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.huespedes-modal input:focus,
+.huespedes-modal select:focus {
+  outline: none;
+  border-color: #1e3a5f;
+  box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.12);
 }
 
 .huespedes-modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  margin-top: 15px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #f1f5f9;
 }
 
 .huespedes-cancel {
-  border: 1px solid #d1d9e2;
-  background: white;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
   color: #334155;
-  padding: 12px 18px;
+  padding: 10px 16px;
   border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 
-@media (max-width: 900px) {
-  .huespedes-page {
-    padding: 20px;
-  }
+.huespedes-cancel:hover {
+  background: #f1f5f9;
+}
 
-  .huespedes-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .huespedes-heading,
-  .huespedes-panel-header {
-    align-items: flex-start;
+/* Responsividad */
+@media (max-width: 768px) {
+  .huespedes-heading {
     flex-direction: column;
+    align-items: stretch;
   }
-}
 
-@media (max-width: 500px) {
-  .huespedes-stats {
-    grid-template-columns: 1fr;
+  .huespedes-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .huespedes-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .huespedes-search-box {
+    max-width: 100%;
+  }
+
+  .huespedes-filter-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .huespedes-modal {
+    padding: 18px 20px;
+    border-radius: 16px;
+  }
+
+  .huespedes-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .huespedes-modal-actions button {
+    width: 100%;
+    justify-content: center;
   }
 }
