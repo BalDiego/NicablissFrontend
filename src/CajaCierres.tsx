@@ -1,49 +1,12 @@
-
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { cashService } from "./services/cash.service";
+import type {
+  CashSession,
+  TipoMovimiento,
+  ConceptoMovimiento,
+  MetodoPago,
+} from "./services/types";
 import "./CajaCierres.css";
-
-type MetodoPago = "Efectivo" | "Transferencia" | "Tarjeta";
-type TipoMovimiento = "Ingreso" | "Salida";
-type Concepto =
-  | "Hospedaje"
-  | "Alimentos"
-  | "Lavandería"
-  | "Otro ingreso"
-  | "Gasto operativo"
-  | "Retiro de efectivo";
-
-type Movimiento = {
-  id: number;
-  fecha: string;
-  tipo: TipoMovimiento;
-  concepto: Concepto;
-  descripcion: string;
-  metodo: MetodoPago;
-  monto: number;
-};
-
-type CierreCaja = {
-  id: number;
-  responsable: string;
-  apertura: string;
-  cierre: string;
-  fondoInicial: number;
-  ingresosEfectivo: number;
-  ingresosDigitales: number;
-  salidasEfectivo: number;
-  efectivoEsperado: number;
-  efectivoContado: number;
-  diferencia: number;
-  observaciones: string;
-  movimientos: Movimiento[];
-};
-
-type SesionCaja = {
-  responsable: string;
-  apertura: string;
-  fondoInicial: number;
-  movimientos: Movimiento[];
-};
 
 const dinero = (valor: number) =>
   valor.toLocaleString("en-US", {
@@ -51,106 +14,79 @@ const dinero = (valor: number) =>
     currency: "USD",
   });
 
-const fechaActual = () =>
-  new Date().toLocaleString("es-NI", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-
-const conceptosIngreso: Concepto[] = [
+const conceptosIngreso: ConceptoMovimiento[] = [
   "Hospedaje",
   "Alimentos",
   "Lavandería",
   "Otro ingreso",
 ];
 
-const conceptosSalida: Concepto[] = [
+const conceptosSalida: ConceptoMovimiento[] = [
   "Gasto operativo",
   "Retiro de efectivo",
 ];
 
 function CajaCierres() {
-  const [sesion, setSesion] = useState<SesionCaja | null>(
-    null
-  );
+  const [sesion, setSesion] = useState<CashSession | null>(null);
+  const [historial, setHistorial] = useState<CashSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [historial, setHistorial] = useState<CierreCaja[]>(
-    []
-  );
-
-  const [mostrarApertura, setMostrarApertura] =
-    useState(false);
-
-  const [mostrarMovimiento, setMostrarMovimiento] =
-    useState(false);
-
-  const [mostrarCierre, setMostrarCierre] =
-    useState(false);
+  const [mostrarApertura, setMostrarApertura] = useState(false);
+  const [mostrarMovimiento, setMostrarMovimiento] = useState(false);
+  const [mostrarCierre, setMostrarCierre] = useState(false);
 
   const [responsable, setResponsable] = useState("");
   const [fondoInicial, setFondoInicial] = useState("0");
 
-  const [tipo, setTipo] =
-    useState<TipoMovimiento>("Ingreso");
-
-  const [concepto, setConcepto] =
-    useState<Concepto>("Hospedaje");
-
+  const [tipo, setTipo] = useState<TipoMovimiento>("Ingreso");
+  const [concepto, setConcepto] = useState<ConceptoMovimiento>("Hospedaje");
   const [descripcion, setDescripcion] = useState("");
-  const [metodo, setMetodo] =
-    useState<MetodoPago>("Efectivo");
-
+  const [metodo, setMetodo] = useState<MetodoPago>("Efectivo");
   const [monto, setMonto] = useState("");
 
-  const [efectivoContado, setEfectivoContado] =
-    useState("");
+  const [efectivoContado, setEfectivoContado] = useState("");
+  const [observaciones, setObservaciones] = useState("");
 
-  const [observaciones, setObservaciones] =
-    useState("");
+  const cargarDatosCaja = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [current, history] = await Promise.all([
+        cashService.getCurrentSession(),
+        cashService.getHistory(),
+      ]);
+      setSesion(current);
+      setHistorial(history);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al consultar el módulo de caja.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarDatosCaja();
+  }, [cargarDatosCaja]);
 
   const movimientos = sesion?.movimientos ?? [];
 
-  const ingresos = movimientos
-    .filter((m) => m.tipo === "Ingreso")
-    .reduce((total, m) => total + m.monto, 0);
+  const ingresos = sesion
+    ? sesion.ingresosEfectivo + sesion.ingresosDigitales
+    : 0;
 
-  const ingresosEfectivo = movimientos
-    .filter(
-      (m) =>
-        m.tipo === "Ingreso" &&
-        m.metodo === "Efectivo"
-    )
-    .reduce((total, m) => total + m.monto, 0);
-
-  const ingresosDigitales = movimientos
-    .filter(
-      (m) =>
-        m.tipo === "Ingreso" &&
-        m.metodo !== "Efectivo"
-    )
-    .reduce((total, m) => total + m.monto, 0);
-
-  const salidasEfectivo = movimientos
-    .filter(
-      (m) =>
-        m.tipo === "Salida" &&
-        m.metodo === "Efectivo"
-    )
-    .reduce((total, m) => total + m.monto, 0);
-
-  const efectivoEsperado =
-    (sesion?.fondoInicial ?? 0) +
-    ingresosEfectivo -
-    salidasEfectivo;
+  const ingresosEfectivo = sesion?.ingresosEfectivo ?? 0;
+  const ingresosDigitales = sesion?.ingresosDigitales ?? 0;
+  const salidasEfectivo = sesion?.salidasEfectivo ?? 0;
+  const efectivoEsperado = sesion?.efectivoEsperado ?? 0;
 
   const contado = Number(efectivoContado);
   const diferencia = contado - efectivoEsperado;
 
-  const abrirCaja = (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+  const abrirCaja = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     const fondo = Number(fondoInicial);
 
     if (!responsable.trim()) {
@@ -163,74 +99,64 @@ function CajaCierres() {
       return;
     }
 
-    setSesion({
-      responsable: responsable.trim(),
-      apertura: fechaActual(),
-      fondoInicial: fondo,
-      movimientos: [],
-    });
+    try {
+      setSubmitting(true);
+      await cashService.openSession(responsable.trim(), fondo);
 
-    setMostrarApertura(false);
-    setResponsable("");
-    setFondoInicial("0");
+      setMostrarApertura(false);
+      setResponsable("");
+      setFondoInicial("0");
+      await cargarDatosCaja();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al abrir la caja.";
+      alert(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const registrarMovimiento = (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+  const registrarMovimiento = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     if (!sesion) return;
 
     const valor = Number(monto);
-
     if (!Number.isFinite(valor) || valor <= 0) {
       alert("Ingresa un monto mayor que cero.");
       return;
     }
 
-    if (
-      tipo === "Salida" &&
-      metodo === "Efectivo" &&
-      valor > efectivoEsperado
-    ) {
-      alert(
-        "La salida supera el efectivo disponible en caja."
-      );
+    if (tipo === "Salida" && metodo === "Efectivo" && valor > efectivoEsperado) {
+      alert("La salida supera el efectivo disponible en caja.");
       return;
     }
 
-    const movimiento: Movimiento = {
-      id: Date.now(),
-      fecha: fechaActual(),
-      tipo,
-      concepto,
-      descripcion: descripcion.trim(),
-      metodo,
-      monto: valor,
-    };
+    try {
+      setSubmitting(true);
+      await cashService.addMovement({
+        tipo,
+        concepto,
+        descripcion: descripcion.trim(),
+        metodo,
+        monto: valor,
+      });
 
-    setSesion({
-      ...sesion,
-      movimientos: [
-        movimiento,
-        ...sesion.movimientos,
-      ],
-    });
-
-    setMostrarMovimiento(false);
-    setTipo("Ingreso");
-    setConcepto("Hospedaje");
-    setDescripcion("");
-    setMetodo("Efectivo");
-    setMonto("");
+      setMostrarMovimiento(false);
+      setTipo("Ingreso");
+      setConcepto("Hospedaje");
+      setDescripcion("");
+      setMetodo("Efectivo");
+      setMonto("");
+      await cargarDatosCaja();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al registrar el movimiento.";
+      alert(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const cerrarCaja = (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+  const cerrarCaja = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     if (!sesion) return;
 
     if (
@@ -242,29 +168,20 @@ function CajaCierres() {
       return;
     }
 
-    const cierre: CierreCaja = {
-      // eslint-disable-next-line react-hooks/purity
-      id: Date.now(),
-      responsable: sesion.responsable,
-      apertura: sesion.apertura,
-      cierre: fechaActual(),
-      fondoInicial: sesion.fondoInicial,
-      ingresosEfectivo,
-      ingresosDigitales,
-      salidasEfectivo,
-      efectivoEsperado,
-      efectivoContado: contado,
-      diferencia,
-      observaciones: observaciones.trim(),
-      movimientos: [...sesion.movimientos],
-    };
+    try {
+      setSubmitting(true);
+      await cashService.closeSession(contado, observaciones.trim());
 
-    setHistorial([cierre, ...historial]);
-
-    setSesion(null);
-    setMostrarCierre(false);
-    setEfectivoContado("");
-    setObservaciones("");
+      setMostrarCierre(false);
+      setEfectivoContado("");
+      setObservaciones("");
+      await cargarDatosCaja();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al cerrar la caja.";
+      alert(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const abrirFormularioMovimiento = () => {
@@ -287,8 +204,7 @@ function CajaCierres() {
           <h1>Caja y cierres</h1>
 
           <p>
-            Control de movimientos, arqueos y cierres
-            por turno de recepción.
+            Control de movimientos, arqueos y cierres por turno en tiempo real.
           </p>
         </div>
 
@@ -321,10 +237,40 @@ function CajaCierres() {
         )}
       </header>
 
+      {error && (
+        <div
+          style={{
+            padding: "1rem",
+            marginBottom: "1.5rem",
+            borderRadius: "8px",
+            backgroundColor: "rgba(220, 38, 38, 0.1)",
+            border: "1px solid rgba(220, 38, 38, 0.3)",
+            color: "#ef4444",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>Error de conexión: {error}</span>
+          <button
+            type="button"
+            onClick={cargarDatosCaja}
+            style={{
+              padding: "0.4rem 0.8rem",
+              background: "#ef4444",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       <section
-        className={`caja-session ${
-          sesion ? "caja-session-open" : ""
-        }`}
+        className={`caja-session ${sesion ? "caja-session-open" : ""}`}
       >
         <div>
           <span className="caja-session-label">
@@ -349,9 +295,7 @@ function CajaCierres() {
         </div>
 
         <span
-          className={`caja-status ${
-            sesion ? "caja-status-open" : ""
-          }`}
+          className={`caja-status ${sesion ? "caja-status-open" : ""}`}
         >
           {sesion ? "En operación" : "Sin sesión"}
         </span>
@@ -390,8 +334,7 @@ function CajaCierres() {
           <div>
             <h2>Movimientos del turno</h2>
             <p>
-              Registro de ingresos y salidas de la
-              sesión actual.
+              Registro de ingresos y salidas de la sesión actual en el backend.
             </p>
           </div>
 
@@ -440,9 +383,7 @@ function CajaCierres() {
 
                   <td>
                     <strong>
-                      {movimiento.tipo === "Salida"
-                        ? "-"
-                        : "+"}
+                      {movimiento.tipo === "Salida" ? "-" : "+"}
                       {dinero(movimiento.monto)}
                     </strong>
                   </td>
@@ -451,7 +392,13 @@ function CajaCierres() {
             </tbody>
           </table>
 
-          {movimientos.length === 0 && (
+          {loading && (
+            <p style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)" }}>
+              Cargando movimientos...
+            </p>
+          )}
+
+          {!loading && movimientos.length === 0 && (
             <div className="caja-empty">
               <strong>
                 No hay movimientos registrados
@@ -471,7 +418,7 @@ function CajaCierres() {
           <div>
             <h2>Historial de cierres</h2>
             <p>
-              Resumen de turnos finalizados.
+              Resumen de turnos finalizados guardados en el servidor.
             </p>
           </div>
 
@@ -503,12 +450,11 @@ function CajaCierres() {
                   </td>
 
                   <td>{cierre.apertura}</td>
-                  <td>{cierre.cierre}</td>
+                  <td>{cierre.cierre || "—"}</td>
 
                   <td>
                     {dinero(
-                      cierre.ingresosEfectivo +
-                        cierre.ingresosDigitales
+                      cierre.ingresosEfectivo + cierre.ingresosDigitales
                     )}
                   </td>
 
@@ -519,13 +465,13 @@ function CajaCierres() {
                   <td>
                     <span
                       className={`caja-difference ${
-                        Math.abs(cierre.diferencia) < 0.005
+                        Math.abs(cierre.diferencia ?? 0) < 0.005
                           ? "caja-balanced"
                           : "caja-unbalanced"
                       }`}
                     >
-                      {cierre.diferencia > 0 ? "+" : ""}
-                      {dinero(cierre.diferencia)}
+                      {(cierre.diferencia ?? 0) > 0 ? "+" : ""}
+                      {dinero(cierre.diferencia ?? 0)}
                     </span>
                   </td>
                 </tr>
@@ -533,14 +479,13 @@ function CajaCierres() {
             </tbody>
           </table>
 
-          {historial.length === 0 && (
+          {!loading && historial.length === 0 && (
             <div className="caja-empty">
               <strong>
                 Aún no existen cierres
               </strong>
               <p>
-                Los cierres aparecerán aquí después
-                de finalizar un turno.
+                Los cierres aparecerán aquí después de finalizar un turno.
               </p>
             </div>
           )}
@@ -548,10 +493,7 @@ function CajaCierres() {
       </section>
 
       <p className="caja-note">
-        Módulo de demostración: los registros se
-        mantienen únicamente mientras la aplicación
-        permanezca abierta. Posteriormente se
-        integrarán con C# y PostgreSQL.
+        Control de caja centralizado con Nicabliss API. Turnos, ingresos, salidas y arqueos de efectivo con registro auditable.
       </p>
 
       {mostrarApertura && (
@@ -603,9 +545,8 @@ function CajaCierres() {
                 <button
                   type="button"
                   className="caja-secondary"
-                  onClick={() =>
-                    setMostrarApertura(false)
-                  }
+                  onClick={() => setMostrarApertura(false)}
+                  disabled={submitting}
                 >
                   Cancelar
                 </button>
@@ -613,8 +554,9 @@ function CajaCierres() {
                 <button
                   type="submit"
                   className="caja-primary"
+                  disabled={submitting}
                 >
-                  Abrir caja
+                  {submitting ? "Abriendo..." : "Abrir caja"}
                 </button>
               </div>
             </form>
@@ -630,9 +572,7 @@ function CajaCierres() {
 
               <button
                 type="button"
-                onClick={() =>
-                  setMostrarMovimiento(false)
-                }
+                onClick={() => setMostrarMovimiento(false)}
               >
                 ✕
               </button>
@@ -647,29 +587,20 @@ function CajaCierres() {
                 id="caja-tipo"
                 value={tipo}
                 onChange={(e) => {
-                  const nuevoTipo =
-                    e.target.value as TipoMovimiento;
-
+                  const nuevoTipo = e.target.value as TipoMovimiento;
                   setTipo(nuevoTipo);
-
                   setConcepto(
                     nuevoTipo === "Ingreso"
                       ? "Hospedaje"
                       : "Gasto operativo"
                   );
-
                   if (nuevoTipo === "Salida") {
                     setMetodo("Efectivo");
                   }
                 }}
               >
-                <option value="Ingreso">
-                  Ingreso
-                </option>
-
-                <option value="Salida">
-                  Salida
-                </option>
+                <option value="Ingreso">Ingreso</option>
+                <option value="Salida">Salida</option>
               </select>
 
               <label htmlFor="caja-concepto">
@@ -680,22 +611,16 @@ function CajaCierres() {
                 id="caja-concepto"
                 value={concepto}
                 onChange={(e) =>
-                  setConcepto(
-                    e.target.value as Concepto
-                  )
+                  setConcepto(e.target.value as ConceptoMovimiento)
                 }
               >
-                {(tipo === "Ingreso"
-                  ? conceptosIngreso
-                  : conceptosSalida
-                ).map((opcion) => (
-                  <option
-                    key={opcion}
-                    value={opcion}
-                  >
-                    {opcion}
-                  </option>
-                ))}
+                {(tipo === "Ingreso" ? conceptosIngreso : conceptosSalida).map(
+                  (opcion) => (
+                    <option key={opcion} value={opcion}>
+                      {opcion}
+                    </option>
+                  )
+                )}
               </select>
 
               <label htmlFor="caja-descripcion">
@@ -706,9 +631,7 @@ function CajaCierres() {
                 id="caja-descripcion"
                 rows={3}
                 value={descripcion}
-                onChange={(e) =>
-                  setDescripcion(e.target.value)
-                }
+                onChange={(e) => setDescripcion(e.target.value)}
                 placeholder="Detalle del movimiento..."
               />
 
@@ -720,25 +643,13 @@ function CajaCierres() {
                 id="caja-metodo"
                 value={metodo}
                 disabled={tipo === "Salida"}
-                onChange={(e) =>
-                  setMetodo(
-                    e.target.value as MetodoPago
-                  )
-                }
+                onChange={(e) => setMetodo(e.target.value as MetodoPago)}
               >
-                <option value="Efectivo">
-                  Efectivo
-                </option>
-
+                <option value="Efectivo">Efectivo</option>
                 {tipo === "Ingreso" && (
                   <>
-                    <option value="Transferencia">
-                      Transferencia
-                    </option>
-
-                    <option value="Tarjeta">
-                      Tarjeta
-                    </option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Tarjeta">Tarjeta</option>
                   </>
                 )}
               </select>
@@ -754,18 +665,15 @@ function CajaCierres() {
                 step="0.01"
                 required
                 value={monto}
-                onChange={(e) =>
-                  setMonto(e.target.value)
-                }
+                onChange={(e) => setMonto(e.target.value)}
               />
 
               <div className="caja-modal-actions">
                 <button
                   type="button"
                   className="caja-secondary"
-                  onClick={() =>
-                    setMostrarMovimiento(false)
-                  }
+                  onClick={() => setMostrarMovimiento(false)}
+                  disabled={submitting}
                 >
                   Cancelar
                 </button>
@@ -773,8 +681,9 @@ function CajaCierres() {
                 <button
                   type="submit"
                   className="caja-primary"
+                  disabled={submitting}
                 >
-                  Guardar movimiento
+                  {submitting ? "Guardando..." : "Guardar movimiento"}
                 </button>
               </div>
             </form>
@@ -790,9 +699,7 @@ function CajaCierres() {
 
               <button
                 type="button"
-                onClick={() =>
-                  setMostrarCierre(false)
-                }
+                onClick={() => setMostrarCierre(false)}
               >
                 ✕
               </button>
@@ -802,37 +709,27 @@ function CajaCierres() {
               <div className="caja-summary">
                 <div>
                   <span>Fondo inicial</span>
-                  <strong>
-                    {dinero(sesion.fondoInicial)}
-                  </strong>
+                  <strong>{dinero(sesion.fondoInicial)}</strong>
                 </div>
 
                 <div>
                   <span>Ingresos en efectivo</span>
-                  <strong>
-                    {dinero(ingresosEfectivo)}
-                  </strong>
+                  <strong>{dinero(ingresosEfectivo)}</strong>
                 </div>
 
                 <div>
                   <span>Ingresos digitales</span>
-                  <strong>
-                    {dinero(ingresosDigitales)}
-                  </strong>
+                  <strong>{dinero(ingresosDigitales)}</strong>
                 </div>
 
                 <div>
                   <span>Salidas de efectivo</span>
-                  <strong>
-                    -{dinero(salidasEfectivo)}
-                  </strong>
+                  <strong>-{dinero(salidasEfectivo)}</strong>
                 </div>
 
                 <div className="caja-summary-total">
                   <span>Efectivo esperado</span>
-                  <strong>
-                    {dinero(efectivoEsperado)}
-                  </strong>
+                  <strong>{dinero(efectivoEsperado)}</strong>
                 </div>
               </div>
 
@@ -847,9 +744,7 @@ function CajaCierres() {
                 step="0.01"
                 required
                 value={efectivoContado}
-                onChange={(e) =>
-                  setEfectivoContado(e.target.value)
-                }
+                onChange={(e) => setEfectivoContado(e.target.value)}
                 placeholder="Monto contado físicamente"
               />
 
@@ -880,9 +775,7 @@ function CajaCierres() {
                 id="caja-observaciones"
                 rows={3}
                 value={observaciones}
-                onChange={(e) =>
-                  setObservaciones(e.target.value)
-                }
+                onChange={(e) => setObservaciones(e.target.value)}
                 placeholder="Observaciones del turno..."
               />
 
@@ -890,9 +783,8 @@ function CajaCierres() {
                 <button
                   type="button"
                   className="caja-secondary"
-                  onClick={() =>
-                    setMostrarCierre(false)
-                  }
+                  onClick={() => setMostrarCierre(false)}
+                  disabled={submitting}
                 >
                   Cancelar
                 </button>
@@ -900,8 +792,9 @@ function CajaCierres() {
                 <button
                   type="submit"
                   className="caja-primary"
+                  disabled={submitting}
                 >
-                  Confirmar cierre
+                  {submitting ? "Cerrando..." : "Confirmar cierre"}
                 </button>
               </div>
             </form>
