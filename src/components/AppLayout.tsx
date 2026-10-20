@@ -237,7 +237,7 @@ export default function AppLayout({
                   window.print();
                 }}
               >
-                <span>🖨️</span> Imprimir reporte rápido
+                Imprimir reporte rápido
               </button>
 
               <button
@@ -248,7 +248,7 @@ export default function AppLayout({
                   onLogout();
                 }}
               >
-                <span>🚪</span> Cerrar sesión
+                Cerrar sesión
               </button>
             </div>
           )}
@@ -293,7 +293,7 @@ export default function AppLayout({
                 aria-label="Ver notificaciones del hotel"
                 title="Notificaciones"
               >
-                <span>🔔</span>
+                <span style={{ fontSize: "11px", fontWeight: 700 }}>AVISOS</span>
                 {unreadCount > 0 && <span className="icon-unread-dot" />}
               </button>
 
