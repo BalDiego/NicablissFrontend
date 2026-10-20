@@ -1,53 +1,25 @@
-
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { billingService } from "./services/billing.service";
+import type { BillingAccount, BillingSummary } from "./services/types";
 import "./CuentasCobros.css";
 
-type Estado = "Pagado" | "Pendiente" | "Parcial";
-
-type Cuenta = {
-  id: number;
-  huesped: string;
-  habitacion: string;
-  concepto: string;
-  total: number;
-  pagado: number;
-  fecha: string;
-};
-
-const cuentasIniciales: Cuenta[] = [
-  {
-    id: 1001,
-    huesped: "María González",
-    habitacion: "Habitación 01",
-    concepto: "Hospedaje",
-    total: 40,
-    pagado: 40,
-    fecha: "2026-10-19",
-  },
-  {
-    id: 1002,
-    huesped: "Carlos Mendoza",
-    habitacion: "Habitación 04",
-    concepto: "Alimentación",
-    total: 12.5,
-    pagado: 0,
-    fecha: "2026-10-19",
-  },
-  {
-    id: 1003,
-    huesped: "Sophie Laurent",
-    habitacion: "Habitación 07",
-    concepto: "Lavandería",
-    total: 8,
-    pagado: 3,
-    fecha: "2026-10-19",
-  },
-];
-
 function CuentasCobros() {
-  const [cuentas, setCuentas] = useState(cuentasIniciales);
+  const [cuentas, setCuentas] = useState<BillingAccount[]>([]);
+  const [resumen, setResumen] = useState<BillingSummary>({
+    totalFacturado: 0,
+    totalCobrado: 0,
+    saldoPendiente: 0,
+  });
   const [busqueda, setBusqueda] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [mostrarModalPago, setMostrarModalPago] = useState(false);
+  const [cuentaParaCobro, setCuentaParaCobro] = useState<BillingAccount | null>(null);
+  const [montoPago, setMontoPago] = useState("");
+
   const [nuevo, setNuevo] = useState({
     huesped: "",
     habitacion: "",
@@ -61,27 +33,29 @@ function CuentasCobros() {
       currency: "USD",
     });
 
-  const estadoDe = (cuenta: Cuenta): Estado => {
-    if (cuenta.pagado >= cuenta.total) return "Pagado";
-    if (cuenta.pagado > 0) return "Parcial";
-    return "Pendiente";
-  };
+  const cargarCuentas = useCallback(async (query = "") => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await billingService.getAll(query);
+      setCuentas(data.cuentas);
+      setResumen(data.resumen);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al cargar las cuentas.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const totalFacturado = cuentas.reduce(
-    (suma, cuenta) => suma + cuenta.total, 0
-  );
-  const totalCobrado = cuentas.reduce(
-    (suma, cuenta) => suma + cuenta.pagado, 0
-  );
-  const saldoPendiente = totalFacturado - totalCobrado;
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      cargarCuentas(busqueda);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [busqueda, cargarCuentas]);
 
-  const cuentasFiltradas = cuentas.filter((cuenta) =>
-    `${cuenta.huesped} ${cuenta.habitacion} ${cuenta.concepto}`
-      .toLowerCase()
-      .includes(busqueda.toLowerCase())
-  );
-
-  const registrarCuenta = (e: React.FormEvent<HTMLFormElement>) => {
+  const registrarCuenta = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const total = Number(nuevo.total);
 
@@ -90,66 +64,68 @@ function CuentasCobros() {
       return;
     }
 
-    setCuentas((anteriores) => [
-      ...anteriores,
-      {
-        id: Date.now(),
+    try {
+      setSubmitting(true);
+      await billingService.create({
         huesped: nuevo.huesped.trim(),
         habitacion: nuevo.habitacion,
         concepto: nuevo.concepto,
         total,
-        pagado: 0,
-        fecha: new Date().toLocaleDateString("en-CA"),
-      },
-    ]);
+      });
 
-    setNuevo({
-      huesped: "",
-      habitacion: "",
-      concepto: "Hospedaje",
-      total: "",
-    });
-    setMostrarFormulario(false);
+      setNuevo({
+        huesped: "",
+        habitacion: "",
+        concepto: "Hospedaje",
+        total: "",
+      });
+      setMostrarFormulario(false);
+      await cargarCuentas(busqueda);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al registrar el cargo.";
+      alert(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const registrarPago = (id: number) => {
-    const cuenta = cuentas.find((item) => item.id === id);
-    if (!cuenta) return;
+  const abrirModalCobro = (cuenta: BillingAccount) => {
+    setCuentaParaCobro(cuenta);
+    setMontoPago(cuenta.saldo.toFixed(2));
+    setMostrarModalPago(true);
+  };
 
-    const pendiente = Number(
-      (cuenta.total - cuenta.pagado).toFixed(2)
-    );
-    const respuesta = window.prompt(
-      `Saldo pendiente: ${moneda(pendiente)}\nImporte a cobrar:`
-    );
+  const ejecutarCobro = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!cuentaParaCobro) return;
 
-    if (respuesta === null) return;
-    const texto = respuesta.trim();
-
-    if (!/^\d+(\.\d{1,2})?$/.test(texto)) {
-      alert("Ingresa un importe válido con máximo 2 decimales.");
+    const importe = Number(montoPago);
+    if (!Number.isFinite(importe) || importe <= 0) {
+      alert("Ingresa un monto válido.");
       return;
     }
 
-    const importe = Number(texto);
-    if (importe <= 0 || importe > pendiente) {
-      alert("El pago debe ser mayor que cero y no superar el saldo.");
+    if (importe > cuentaParaCobro.saldo) {
+      alert(`El monto no puede superar el saldo pendiente (${moneda(cuentaParaCobro.saldo)}).`);
       return;
     }
 
-    setCuentas((anteriores) =>
-      anteriores.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              pagado: Number(
-                (item.pagado + importe).toFixed(2)
-              ),
-            }
-          : item
-      )
-    );
+    try {
+      setSubmitting(true);
+      await billingService.recordPayment(cuentaParaCobro.id, importe);
+      setMostrarModalPago(false);
+      setCuentaParaCobro(null);
+      setMontoPago("");
+      await cargarCuentas(busqueda);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al registrar el cobro.";
+      alert(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const cuentasAbiertas = cuentas.filter((c) => c.saldo > 0).length;
 
   return (
     <main className="cobros-page">
@@ -160,7 +136,7 @@ function CuentasCobros() {
           </span>
           <h1>Cuentas y cobros</h1>
           <p>
-            Control de cargos, pagos y saldos de huéspedes.
+            Control de cargos, pagos y saldos de huéspedes en tiempo real.
           </p>
         </div>
         <button
@@ -171,24 +147,54 @@ function CuentasCobros() {
         </button>
       </div>
 
+      {error && (
+        <div
+          style={{
+            padding: "1rem",
+            marginBottom: "1.5rem",
+            borderRadius: "8px",
+            backgroundColor: "rgba(220, 38, 38, 0.1)",
+            border: "1px solid rgba(220, 38, 38, 0.3)",
+            color: "#ef4444",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>Error de sincronización: {error}</span>
+          <button
+            type="button"
+            onClick={() => cargarCuentas(busqueda)}
+            style={{
+              padding: "0.4rem 0.8rem",
+              background: "#ef4444",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       <div className="cobros-stats">
         <article className="cobros-stat">
           <span>Total facturado</span>
-          <strong>{moneda(totalFacturado)}</strong>
+          <strong>{moneda(resumen.totalFacturado)}</strong>
         </article>
         <article className="cobros-stat">
           <span>Total cobrado</span>
-          <strong>{moneda(totalCobrado)}</strong>
+          <strong>{moneda(resumen.totalCobrado)}</strong>
         </article>
         <article className="cobros-stat">
           <span>Saldo pendiente</span>
-          <strong>{moneda(saldoPendiente)}</strong>
+          <strong>{moneda(resumen.saldoPendiente)}</strong>
         </article>
         <article className="cobros-stat">
           <span>Cuentas abiertas</span>
-          <strong>
-            {cuentas.filter((c) => c.pagado < c.total).length}
-          </strong>
+          <strong>{cuentasAbiertas}</strong>
         </article>
       </div>
 
@@ -196,7 +202,7 @@ function CuentasCobros() {
         <div className="cobros-panel-header">
           <div>
             <h2>Movimientos registrados</h2>
-            <p>Consulta y seguimiento de cobros</p>
+            <p>Consulta y seguimiento de cobros en el servidor central</p>
           </div>
           <input
             type="search"
@@ -220,54 +226,53 @@ function CuentasCobros() {
               </tr>
             </thead>
             <tbody>
-              {cuentasFiltradas.map((cuenta) => {
-                const pendiente = Number(
-                  (cuenta.total - cuenta.pagado).toFixed(2)
-                );
-                const estado = estadoDe(cuenta);
-
-                return (
-                  <tr key={cuenta.id}>
-                    <td>
-                      <strong>{cuenta.huesped}</strong>
-                      <small>{cuenta.habitacion}</small>
-                    </td>
-                    <td>{cuenta.concepto}</td>
-                    <td>{moneda(cuenta.total)}</td>
-                    <td>{moneda(cuenta.pagado)}</td>
-                    <td>{moneda(pendiente)}</td>
-                    <td>
-                      <span
-                        className={`cobros-status cobros-${estado.toLowerCase()}`}
-                      >
-                        {estado}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className="cobros-action"
-                        disabled={pendiente <= 0}
-                        onClick={() => registrarPago(cuenta.id)}
-                      >
-                        {pendiente <= 0 ? "Pagado" : "Cobrar"}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {cuentas.map((cuenta) => (
+                <tr key={cuenta.id}>
+                  <td>
+                    <strong>{cuenta.huesped}</strong>
+                    <small>{cuenta.habitacion}</small>
+                  </td>
+                  <td>{cuenta.concepto}</td>
+                  <td>{moneda(cuenta.total)}</td>
+                  <td>{moneda(cuenta.pagado)}</td>
+                  <td>{moneda(cuenta.saldo)}</td>
+                  <td>
+                    <span
+                      className={`cobros-status cobros-${cuenta.estado.toLowerCase()}`}
+                    >
+                      {cuenta.estado}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      className="cobros-action"
+                      disabled={cuenta.saldo <= 0}
+                      onClick={() => abrirModalCobro(cuenta)}
+                    >
+                      {cuenta.saldo <= 0 ? "Pagado" : "Cobrar"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
-          {cuentasFiltradas.length === 0 && (
+
+          {loading && (
+            <p style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)" }}>
+              Cargando movimientos...
+            </p>
+          )}
+
+          {!loading && cuentas.length === 0 && (
             <p className="cobros-empty">
-              No se encontraron movimientos.
+              No se encontraron cuentas o movimientos registrados.
             </p>
           )}
         </div>
       </section>
 
       <p className="cobros-notice">
-        Datos de demostración. Los registros y pagos todavía
-        no se guardan en la base de datos.
+        Cuentas sincronizadas directamente con Nicabliss API. Las transacciones se asientan de manera inmediata.
       </p>
 
       {mostrarFormulario && (
@@ -290,6 +295,7 @@ function CuentasCobros() {
                 onChange={(e) =>
                   setNuevo({ ...nuevo, huesped: e.target.value })
                 }
+                placeholder="Nombre del huésped"
               />
 
               <label>Habitación</label>
@@ -334,6 +340,7 @@ function CuentasCobros() {
                 onChange={(e) =>
                   setNuevo({ ...nuevo, total: e.target.value })
                 }
+                placeholder="0.00"
               />
 
               <div className="cobros-modal-actions">
@@ -341,11 +348,83 @@ function CuentasCobros() {
                   type="button"
                   className="cobros-cancel"
                   onClick={() => setMostrarFormulario(false)}
+                  disabled={submitting}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="cobros-primary">
-                  Guardar cargo
+                <button
+                  type="submit"
+                  className="cobros-primary"
+                  disabled={submitting}
+                >
+                  {submitting ? "Guardando..." : "Guardar cargo"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {mostrarModalPago && cuentaParaCobro && (
+        <div className="cobros-overlay">
+          <div className="cobros-modal">
+            <div className="cobros-modal-header">
+              <h2>Registrar pago / abono</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrarModalPago(false);
+                  setCuentaParaCobro(null);
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={ejecutarCobro}>
+              <div style={{ marginBottom: "1rem", fontSize: "0.95rem" }}>
+                <p style={{ margin: "0.25rem 0" }}>
+                  <strong>Huésped:</strong> {cuentaParaCobro.huesped} ({cuentaParaCobro.habitacion})
+                </p>
+                <p style={{ margin: "0.25rem 0" }}>
+                  <strong>Concepto:</strong> {cuentaParaCobro.concepto}
+                </p>
+                <p style={{ margin: "0.25rem 0" }}>
+                  <strong>Total:</strong> {moneda(cuentaParaCobro.total)} | <strong>Pagado:</strong> {moneda(cuentaParaCobro.pagado)}
+                </p>
+                <p style={{ margin: "0.25rem 0", color: "#10b981", fontWeight: 600 }}>
+                  <strong>Saldo restante:</strong> {moneda(cuentaParaCobro.saldo)}
+                </p>
+              </div>
+
+              <label>Monto a pagar (USD)</label>
+              <input
+                type="number"
+                min="0.01"
+                max={cuentaParaCobro.saldo}
+                step="0.01"
+                required
+                value={montoPago}
+                onChange={(e) => setMontoPago(e.target.value)}
+              />
+
+              <div className="cobros-modal-actions">
+                <button
+                  type="button"
+                  className="cobros-cancel"
+                  onClick={() => {
+                    setMostrarModalPago(false);
+                    setCuentaParaCobro(null);
+                  }}
+                  disabled={submitting}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="cobros-primary"
+                  disabled={submitting}
+                >
+                  {submitting ? "Procesando..." : "Confirmar cobro"}
                 </button>
               </div>
             </form>

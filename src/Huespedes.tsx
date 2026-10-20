@@ -1,59 +1,14 @@
-
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { guestService } from "./services/guest.service";
+import type { Guest } from "./services/types";
 import "./Huespedes.css";
 
-type Huesped = {
-  id: number;
-  nombre: string;
-  documento: string;
-  habitacion: string;
-  entrada: string;
-  salida: string;
-  estado: "Activo" | "Finalizado" | "Reservado";
-};
-
-const huespedesIniciales: Huesped[] = [
-  {
-    id: 1,
-    nombre: "María González",
-    documento: "001-150298-0001A",
-    habitacion: "Habitación 01",
-    entrada: "2026-10-17",
-    salida: "2026-10-20",
-    estado: "Activo",
-  },
-  {
-    id: 2,
-    nombre: "Carlos Mendoza",
-    documento: "001-230195-0002B",
-    habitacion: "Habitación 04",
-    entrada: "2026-10-18",
-    salida: "2026-10-22",
-    estado: "Activo",
-  },
-  {
-    id: 3,
-    nombre: "Sophie Laurent",
-    documento: "P12345678",
-    habitacion: "Habitación 07",
-    entrada: "2026-10-15",
-    salida: "2026-10-19",
-    estado: "Finalizado",
-  },
-  {
-    id: 4,
-    nombre: "James Wilson",
-    documento: "P87654321",
-    habitacion: "Habitación 03",
-    entrada: "2026-10-21",
-    salida: "2026-10-25",
-    estado: "Reservado",
-  },
-];
-
 function Huespedes() {
-  const [huespedes, setHuespedes] = useState(huespedesIniciales);
+  const [huespedes, setHuespedes] = useState<Guest[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
   const [nuevo, setNuevo] = useState({
@@ -64,13 +19,28 @@ function Huespedes() {
     salida: "",
   });
 
-  const filtrados = huespedes.filter((huesped) =>
-    `${huesped.nombre} ${huesped.documento} ${huesped.habitacion}`
-      .toLowerCase()
-      .includes(busqueda.toLowerCase())
-  );
+  const cargarHuespedes = useCallback(async (query = "") => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await guestService.getAll(query);
+      setHuespedes(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al cargar los huéspedes.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const registrarHuesped = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      cargarHuespedes(busqueda);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [busqueda, cargarHuespedes]);
+
+  const registrarHuesped = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (nuevo.salida < nuevo.entrada) {
@@ -78,25 +48,46 @@ function Huespedes() {
       return;
     }
 
-    setHuespedes((actuales) => [
-      ...actuales,
-      {
-        id: Date.now(),
-        ...nuevo,
+    try {
+      setSubmitting(true);
+      await guestService.create({
+        nombre: nuevo.nombre.trim(),
+        documento: nuevo.documento.trim(),
+        habitacion: nuevo.habitacion,
+        entrada: nuevo.entrada,
+        salida: nuevo.salida,
         estado: "Activo",
-      },
-    ]);
+      });
 
-    setNuevo({
-      nombre: "",
-      documento: "",
-      habitacion: "",
-      entrada: "",
-      salida: "",
-    });
+      setNuevo({
+        nombre: "",
+        documento: "",
+        habitacion: "",
+        entrada: "",
+        salida: "",
+      });
 
-    setMostrarFormulario(false);
+      setMostrarFormulario(false);
+      await cargarHuespedes(busqueda);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al registrar el huésped.";
+      alert(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const cambiarEstado = async (id: number, nuevoEstado: "Activo" | "Finalizado" | "Reservado") => {
+    try {
+      await guestService.updateStatus(id, nuevoEstado);
+      await cargarHuespedes(busqueda);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al actualizar el estado.";
+      alert(msg);
+    }
+  };
+
+  const filtrados = huespedes;
 
   return (
     <main className="huespedes-page">
@@ -107,8 +98,7 @@ function Huespedes() {
           </span>
           <h1>Huéspedes y estancias</h1>
           <p>
-            Consulta y administra los huéspedes registrados
-            en el hotel.
+            Consulta y administra los huéspedes registrados en el hotel.
           </p>
         </div>
 
@@ -119,6 +109,38 @@ function Huespedes() {
           + Nuevo huésped
         </button>
       </div>
+
+      {error && (
+        <div
+          style={{
+            padding: "1rem",
+            marginBottom: "1.5rem",
+            borderRadius: "8px",
+            backgroundColor: "rgba(220, 38, 38, 0.1)",
+            border: "1px solid rgba(220, 38, 38, 0.3)",
+            color: "#ef4444",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>Error de sincronización: {error}</span>
+          <button
+            type="button"
+            onClick={() => cargarHuespedes(busqueda)}
+            style={{
+              padding: "0.4rem 0.8rem",
+              background: "#ef4444",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       <div className="huespedes-stats">
         <div className="huespedes-stat">
@@ -152,7 +174,7 @@ function Huespedes() {
         <div className="huespedes-panel-header">
           <div>
             <h2>Listado de huéspedes</h2>
-            <p>Registros de demostración</p>
+            <p>Registros en tiempo real conectados con el backend</p>
           </div>
 
           <input
@@ -173,6 +195,7 @@ function Huespedes() {
                 <th>Entrada</th>
                 <th>Salida</th>
                 <th>Estado</th>
+                <th>Acción</th>
               </tr>
             </thead>
 
@@ -180,7 +203,7 @@ function Huespedes() {
               {filtrados.map((huesped) => (
                 <tr key={huesped.id}>
                   <td className="huespedes-name">
-                    {huesped.nombre}
+                    <strong>{huesped.nombre}</strong>
                   </td>
                   <td>{huesped.documento}</td>
                   <td>{huesped.habitacion}</td>
@@ -193,14 +216,44 @@ function Huespedes() {
                       {huesped.estado}
                     </span>
                   </td>
+                  <td>
+                    <select
+                      style={{
+                        padding: "0.25rem 0.5rem",
+                        borderRadius: "4px",
+                        border: "1px solid var(--border-color, #334155)",
+                        background: "var(--bg-surface, #1e293b)",
+                        color: "inherit",
+                        fontSize: "0.85rem",
+                        cursor: "pointer",
+                      }}
+                      value={huesped.estado}
+                      onChange={(e) =>
+                        cambiarEstado(
+                          huesped.id,
+                          e.target.value as "Activo" | "Finalizado" | "Reservado"
+                        )
+                      }
+                    >
+                      <option value="Activo">Activo</option>
+                      <option value="Reservado">Reservado</option>
+                      <option value="Finalizado">Finalizado</option>
+                    </select>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          {filtrados.length === 0 && (
+          {loading && (
+            <p style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)" }}>
+              Cargando huéspedes...
+            </p>
+          )}
+
+          {!loading && filtrados.length === 0 && (
             <p className="huespedes-empty">
-              No se encontraron huéspedes.
+              No se encontraron huéspedes registrados.
             </p>
           )}
         </div>
@@ -227,6 +280,7 @@ function Huespedes() {
                 onChange={(e) =>
                   setNuevo({ ...nuevo, nombre: e.target.value })
                 }
+                placeholder="Nombre y apellido"
               />
 
               <label>Documento de identidad</label>
@@ -236,6 +290,7 @@ function Huespedes() {
                 onChange={(e) =>
                   setNuevo({ ...nuevo, documento: e.target.value })
                 }
+                placeholder="Cédula o Pasaporte"
               />
 
               <label>Habitación</label>
@@ -279,6 +334,7 @@ function Huespedes() {
                   type="button"
                   className="huespedes-cancel"
                   onClick={() => setMostrarFormulario(false)}
+                  disabled={submitting}
                 >
                   Cancelar
                 </button>
@@ -286,8 +342,9 @@ function Huespedes() {
                 <button
                   type="submit"
                   className="huespedes-primary"
+                  disabled={submitting}
                 >
-                  Guardar huésped
+                  {submitting ? "Guardando..." : "Guardar huésped"}
                 </button>
               </div>
             </form>
