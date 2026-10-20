@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Pantalla } from "./types";
 import AppLayout from "./components/AppLayout";
 import Dashboard from "./Dashboard";
@@ -7,6 +7,7 @@ import CuentasCobros from "./CuentasCobros";
 import PedidosAlimentos from "./PedidosAlimentos";
 import Lavanderia from "./Lavanderia";
 import CajaCierres from "./CajaCierres";
+import { authService } from "./services/auth.service";
 import "./App.css";
 import "./Login.css";
 
@@ -15,25 +16,67 @@ function App() {
   const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
   const [autenticado, setAutenticado] = useState(false);
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
+  const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 
   // Control de navegación
   const [pantalla, setPantalla] = useState<Pantalla>("dashboard");
 
-  // Validación del usuario administrador
-  const iniciarSesion = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  // Al montar la aplicación, verificar si ya existe una sesión activa y válida
+  useEffect(() => {
+    const verificarSesion = async () => {
+      const token = authService.getStoredToken();
+      if (!token) {
+        setVerificandoSesion(false);
+        return;
+      }
 
-    if (usuario === "admin" && password === "12345") {
+      try {
+        await authService.getProfile();
+        setAutenticado(true);
+      } catch {
+        authService.logout();
+        setAutenticado(false);
+      } finally {
+        setVerificandoSesion(false);
+      }
+    };
+
+    verificarSesion();
+
+    // Escuchar eventos de sesión expirada
+    const handleSessionExpired = () => {
+      setAutenticado(false);
+      setError("Tu sesión ha expirado. Por favor ingresa tus credenciales nuevamente.");
+    };
+
+    window.addEventListener("nicabliss:session-expired", handleSessionExpired);
+    return () => {
+      window.removeEventListener("nicabliss:session-expired", handleSessionExpired);
+    };
+  }, []);
+
+  // Inicio de sesión contra la API REST
+  const iniciarSesion = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    setCargando(true);
+
+    try {
+      await authService.login(usuario.trim(), password);
       setAutenticado(true);
       setPantalla("dashboard");
       setError("");
-    } else {
-      setError("Usuario o contraseña incorrectos (Usa: admin / 12345)");
+    } catch (err: any) {
+      setError(err.message || "Usuario o contraseña incorrectos");
+    } finally {
+      setCargando(false);
     }
   };
 
   const cerrarSesion = () => {
+    authService.logout();
     setAutenticado(false);
     setUsuario("");
     setPassword("");
@@ -46,6 +89,16 @@ function App() {
     setPantalla(destino);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  if (verificandoSesion) {
+    return (
+      <div className="login-page">
+        <div style={{ textAlign: "center", color: "#193c31", fontWeight: 600 }}>
+          <p>Verificando sesión segura de Nicabliss...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Si el usuario inició sesión, mostramos el layout unificado persistente
   if (autenticado) {
@@ -84,6 +137,7 @@ function App() {
             value={usuario}
             onChange={(e) => setUsuario(e.target.value)}
             autoComplete="username"
+            disabled={cargando}
             required
           />
 
@@ -92,10 +146,11 @@ function App() {
           <input
             id="password"
             type="password"
-            placeholder="••••• (12345)"
+            placeholder="12345"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
+            disabled={cargando}
             required
           />
 
@@ -105,17 +160,17 @@ function App() {
             </p>
           )}
 
-          <button type="submit" className="login-button">
-            Iniciar sesión
+          <button type="submit" className="login-button" disabled={cargando}>
+            {cargando ? "Autenticando..." : "Iniciar sesión"}
           </button>
         </form>
 
         <div className="login-hint">
-          <small>Credenciales demo: <strong>admin</strong> / <strong>12345</strong></small>
+          <small>Credenciales del sistema: <strong>admin</strong> / <strong>12345</strong></small>
         </div>
 
         <span className="login-footer">
-          Nicabliss © 2026 · Sistema Interno
+          Nicabliss - Sistema Interno
         </span>
       </div>
     </div>
