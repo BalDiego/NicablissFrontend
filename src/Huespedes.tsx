@@ -1,59 +1,15 @@
-
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { guestService } from "./services/guest.service";
+import type { Guest } from "./services/types";
 import "./Huespedes.css";
 
-type Huesped = {
-  id: number;
-  nombre: string;
-  documento: string;
-  habitacion: string;
-  entrada: string;
-  salida: string;
-  estado: "Activo" | "Finalizado" | "Reservado";
-};
-
-const huespedesIniciales: Huesped[] = [
-  {
-    id: 1,
-    nombre: "María González",
-    documento: "001-150298-0001A",
-    habitacion: "Habitación 01",
-    entrada: "2026-10-17",
-    salida: "2026-10-20",
-    estado: "Activo",
-  },
-  {
-    id: 2,
-    nombre: "Carlos Mendoza",
-    documento: "001-230195-0002B",
-    habitacion: "Habitación 04",
-    entrada: "2026-10-18",
-    salida: "2026-10-22",
-    estado: "Activo",
-  },
-  {
-    id: 3,
-    nombre: "Sophie Laurent",
-    documento: "P12345678",
-    habitacion: "Habitación 07",
-    entrada: "2026-10-15",
-    salida: "2026-10-19",
-    estado: "Finalizado",
-  },
-  {
-    id: 4,
-    nombre: "James Wilson",
-    documento: "P87654321",
-    habitacion: "Habitación 03",
-    entrada: "2026-10-21",
-    salida: "2026-10-25",
-    estado: "Reservado",
-  },
-];
-
 function Huespedes() {
-  const [huespedes, setHuespedes] = useState(huespedesIniciales);
+  const [huespedes, setHuespedes] = useState<Guest[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState<"Todos" | "Activo" | "Reservado" | "Finalizado">("Todos");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
   const [nuevo, setNuevo] = useState({
@@ -64,13 +20,28 @@ function Huespedes() {
     salida: "",
   });
 
-  const filtrados = huespedes.filter((huesped) =>
-    `${huesped.nombre} ${huesped.documento} ${huesped.habitacion}`
-      .toLowerCase()
-      .includes(busqueda.toLowerCase())
-  );
+  const cargarHuespedes = useCallback(async (query = "") => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await guestService.getAll(query);
+      setHuespedes(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al cargar los huéspedes.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const registrarHuesped = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      cargarHuespedes(busqueda);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [busqueda, cargarHuespedes]);
+
+  const registrarHuesped = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (nuevo.salida < nuevo.entrada) {
@@ -78,37 +49,66 @@ function Huespedes() {
       return;
     }
 
-    setHuespedes((actuales) => [
-      ...actuales,
-      {
-        id: Date.now(),
-        ...nuevo,
+    try {
+      setSubmitting(true);
+      await guestService.create({
+        nombre: nuevo.nombre.trim(),
+        documento: nuevo.documento.trim(),
+        habitacion: nuevo.habitacion,
+        entrada: nuevo.entrada,
+        salida: nuevo.salida,
         estado: "Activo",
-      },
-    ]);
+      });
 
-    setNuevo({
-      nombre: "",
-      documento: "",
-      habitacion: "",
-      entrada: "",
-      salida: "",
-    });
+      setNuevo({
+        nombre: "",
+        documento: "",
+        habitacion: "",
+        entrada: "",
+        salida: "",
+      });
 
-    setMostrarFormulario(false);
+      setMostrarFormulario(false);
+      await cargarHuespedes(busqueda);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al registrar el huésped.";
+      alert(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const cambiarEstado = async (id: number, nuevoEstado: "Activo" | "Finalizado" | "Reservado") => {
+    try {
+      await guestService.updateStatus(id, nuevoEstado);
+      await cargarHuespedes(busqueda);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al actualizar el estado.";
+      alert(msg);
+    }
+  };
+
+  // Filtrado local según la pestaña seleccionada
+  const filtrados = huespedes.filter((h) => {
+    if (filtroEstado !== "Todos" && h.estado !== filtroEstado) {
+      return false;
+    }
+    return true;
+  });
+
+  const totalActivos = huespedes.filter((h) => h.estado === "Activo").length;
+  const totalReservados = huespedes.filter((h) => h.estado === "Reservado").length;
+  const totalFinalizados = huespedes.filter((h) => h.estado === "Finalizado").length;
 
   return (
     <main className="huespedes-page">
+      {/* Encabezado */}
       <div className="huespedes-heading">
         <div>
-          <span className="huespedes-eyebrow">
-            NICABLISS / OPERACIONES
-          </span>
+          <span className="huespedes-eyebrow">NICABLISS / OPERACIONES</span>
           <h1>Huéspedes y estancias</h1>
           <p>
-            Consulta y administra los huéspedes registrados
-            en el hotel.
+            Consulta, filtra y administra los huéspedes registrados en el hotel en tiempo real.
           </p>
         </div>
 
@@ -116,53 +116,130 @@ function Huespedes() {
           className="huespedes-primary"
           onClick={() => setMostrarFormulario(true)}
         >
-          + Nuevo huésped
+          <span>+</span> Nuevo huésped
         </button>
       </div>
 
+      {error && (
+        <div
+          style={{
+            padding: "1rem",
+            marginBottom: "1.5rem",
+            borderRadius: "8px",
+            backgroundColor: "rgba(220, 38, 38, 0.1)",
+            border: "1px solid rgba(220, 38, 38, 0.3)",
+            color: "#ef4444",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>Error de sincronización: {error}</span>
+          <button
+            type="button"
+            onClick={() => cargarHuespedes(busqueda)}
+            style={{
+              padding: "0.4rem 0.8rem",
+              background: "#ef4444",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {/* Tarjetas KPI Interactivas con Clic */}
       <div className="huespedes-stats">
-        <div className="huespedes-stat">
+        <div
+          className={`huespedes-stat ${filtroEstado === "Todos" ? "is-active" : ""}`}
+          onClick={() => setFiltroEstado("Todos")}
+          title="Ver todos los registros"
+        >
           <span>Total de registros</span>
           <strong>{huespedes.length}</strong>
         </div>
 
-        <div className="huespedes-stat">
+        <div
+          className={`huespedes-stat ${filtroEstado === "Activo" ? "is-active" : ""}`}
+          onClick={() => setFiltroEstado("Activo")}
+          title="Filtrar por estancias activas"
+        >
           <span>Estancias activas</span>
-          <strong>
-            {huespedes.filter((h) => h.estado === "Activo").length}
-          </strong>
+          <strong style={{ color: "#16a34a" }}>{totalActivos}</strong>
         </div>
 
-        <div className="huespedes-stat">
+        <div
+          className={`huespedes-stat ${filtroEstado === "Reservado" ? "is-active" : ""}`}
+          onClick={() => setFiltroEstado("Reservado")}
+          title="Filtrar por reservaciones"
+        >
           <span>Reservados</span>
-          <strong>
-            {huespedes.filter((h) => h.estado === "Reservado").length}
-          </strong>
+          <strong style={{ color: "#2563eb" }}>{totalReservados}</strong>
         </div>
 
-        <div className="huespedes-stat">
+        <div
+          className={`huespedes-stat ${filtroEstado === "Finalizado" ? "is-active" : ""}`}
+          onClick={() => setFiltroEstado("Finalizado")}
+          title="Filtrar por estancias finalizadas"
+        >
           <span>Finalizados</span>
-          <strong>
-            {huespedes.filter((h) => h.estado === "Finalizado").length}
-          </strong>
+          <strong style={{ color: "#64748b" }}>{totalFinalizados}</strong>
         </div>
       </div>
 
+      {/* Panel con Barra de Búsqueda y Pestañas de Filtro */}
       <section className="huespedes-panel">
         <div className="huespedes-panel-header">
-          <div>
-            <h2>Listado de huéspedes</h2>
-            <p>Registros de demostración</p>
-          </div>
+          <div className="huespedes-toolbar">
+            <div className="huespedes-search-box">
+              <span className="huespedes-search-icon">🔍</span>
+              <input
+                type="search"
+                placeholder="Buscar por nombre, documento o habitación..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+            </div>
 
-          <input
-            type="search"
-            placeholder="Buscar huésped, documento o habitación..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-          />
+            {/* Pestañas de Filtro Claras y Visibles */}
+            <div className="huespedes-filter-tabs">
+              <button
+                type="button"
+                className={`huespedes-tab-btn ${filtroEstado === "Todos" ? "is-active" : ""}`}
+                onClick={() => setFiltroEstado("Todos")}
+              >
+                Todos ({huespedes.length})
+              </button>
+              <button
+                type="button"
+                className={`huespedes-tab-btn tab-activo ${filtroEstado === "Activo" ? "is-active" : ""}`}
+                onClick={() => setFiltroEstado("Activo")}
+              >
+                🟢 Activos ({totalActivos})
+              </button>
+              <button
+                type="button"
+                className={`huespedes-tab-btn tab-reservado ${filtroEstado === "Reservado" ? "is-active" : ""}`}
+                onClick={() => setFiltroEstado("Reservado")}
+              >
+                🔵 Reservados ({totalReservados})
+              </button>
+              <button
+                type="button"
+                className={`huespedes-tab-btn tab-finalizado ${filtroEstado === "Finalizado" ? "is-active" : ""}`}
+                onClick={() => setFiltroEstado("Finalizado")}
+              >
+                ⚪ Finalizados ({totalFinalizados})
+              </button>
+            </div>
+          </div>
         </div>
 
+        {/* Tabla */}
         <div className="huespedes-table-wrap">
           <table className="huespedes-table">
             <thead>
@@ -172,7 +249,8 @@ function Huespedes() {
                 <th>Habitación</th>
                 <th>Entrada</th>
                 <th>Salida</th>
-                <th>Estado</th>
+                <th>Estado Actual</th>
+                <th>Cambiar Estado</th>
               </tr>
             </thead>
 
@@ -180,7 +258,7 @@ function Huespedes() {
               {filtrados.map((huesped) => (
                 <tr key={huesped.id}>
                   <td className="huespedes-name">
-                    {huesped.nombre}
+                    <strong>{huesped.nombre}</strong>
                   </td>
                   <td>{huesped.documento}</td>
                   <td>{huesped.habitacion}</td>
@@ -190,55 +268,87 @@ function Huespedes() {
                     <span
                       className={`huespedes-status status-${huesped.estado.toLowerCase()}`}
                     >
+                      {huesped.estado === "Activo" && "🟢 "}
+                      {huesped.estado === "Reservado" && "🔵 "}
+                      {huesped.estado === "Finalizado" && "⚪ "}
                       {huesped.estado}
                     </span>
+                  </td>
+                  <td>
+                    <select
+                      className="huespedes-action-select"
+                      value={huesped.estado}
+                      onChange={(e) =>
+                        cambiarEstado(
+                          huesped.id,
+                          e.target.value as "Activo" | "Finalizado" | "Reservado"
+                        )
+                      }
+                      title="Cambiar estado de estancia del huésped"
+                      aria-label="Cambiar estado"
+                    >
+                      <option value="Activo">✓ Activo</option>
+                      <option value="Reservado">⏳ Reservado</option>
+                      <option value="Finalizado">🏁 Finalizado</option>
+                    </select>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          {filtrados.length === 0 && (
+          {loading && (
+            <p style={{ textAlign: "center", padding: "1.5rem", color: "#64748b" }}>
+              Cargando huéspedes...
+            </p>
+          )}
+
+          {!loading && filtrados.length === 0 && (
             <p className="huespedes-empty">
-              No se encontraron huéspedes.
+              No se encontraron huéspedes con los filtros actuales.
             </p>
           )}
         </div>
       </section>
 
+      {/* Modal Registrar Huésped */}
       {mostrarFormulario && (
-        <div className="huespedes-modal-overlay">
-          <div className="huespedes-modal">
+        <div className="huespedes-modal-overlay" onClick={() => !submitting && setMostrarFormulario(false)}>
+          <div className="huespedes-modal" onClick={(e) => e.stopPropagation()}>
             <div className="huespedes-modal-heading">
-              <h2>Registrar huésped</h2>
+              <h2>Registrar nuevo huésped</h2>
               <button
                 type="button"
                 onClick={() => setMostrarFormulario(false)}
+                title="Cerrar ventana"
+                aria-label="Cerrar ventana"
               >
                 ✕
               </button>
             </div>
 
             <form onSubmit={registrarHuesped}>
-              <label>Nombre completo</label>
+              <label>Nombre completo *</label>
               <input
                 required
                 value={nuevo.nombre}
                 onChange={(e) =>
                   setNuevo({ ...nuevo, nombre: e.target.value })
                 }
+                placeholder="Nombre y apellido"
               />
 
-              <label>Documento de identidad</label>
+              <label>Documento de identidad *</label>
               <input
                 required
                 value={nuevo.documento}
                 onChange={(e) =>
                   setNuevo({ ...nuevo, documento: e.target.value })
                 }
+                placeholder="Cédula o Pasaporte"
               />
 
-              <label>Habitación</label>
+              <label>Habitación asignada *</label>
               <select
                 required
                 value={nuevo.habitacion}
@@ -254,7 +364,7 @@ function Huespedes() {
                 ))}
               </select>
 
-              <label>Fecha de entrada</label>
+              <label>Fecha de entrada *</label>
               <input
                 type="date"
                 required
@@ -264,7 +374,7 @@ function Huespedes() {
                 }
               />
 
-              <label>Fecha de salida</label>
+              <label>Fecha de salida *</label>
               <input
                 type="date"
                 required
@@ -279,6 +389,7 @@ function Huespedes() {
                   type="button"
                   className="huespedes-cancel"
                   onClick={() => setMostrarFormulario(false)}
+                  disabled={submitting}
                 >
                   Cancelar
                 </button>
@@ -286,8 +397,9 @@ function Huespedes() {
                 <button
                   type="submit"
                   className="huespedes-primary"
+                  disabled={submitting}
                 >
-                  Guardar huésped
+                  {submitting ? "Guardando..." : "Guardar huésped"}
                 </button>
               </div>
             </form>

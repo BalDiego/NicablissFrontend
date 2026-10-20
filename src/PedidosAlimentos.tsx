@@ -1,5 +1,6 @@
-
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { foodOrderService } from "./services/foodOrder.service";
+import type { FoodOrder } from "./services/types";
 import "./PedidosAlimentos.css";
 
 type EstadoPedido =
@@ -8,46 +9,6 @@ type EstadoPedido =
   | "En camino"
   | "Entregado"
   | "Cancelado";
-
-type Pedido = {
-  id: number;
-  huesped: string;
-  habitacion: string;
-  productos: string;
-  total: number;
-  estado: EstadoPedido;
-  fecha: string;
-};
-
-const pedidosIniciales: Pedido[] = [
-  {
-    id: 101,
-    huesped: "María González",
-    habitacion: "Habitación 01",
-    productos: "2 desayunos americanos",
-    total: 12,
-    estado: "Pendiente",
-    fecha: "19/10/2026",
-  },
-  {
-    id: 102,
-    huesped: "Carlos Mendoza",
-    habitacion: "Habitación 04",
-    productos: "1 sándwich y 1 café",
-    total: 7.5,
-    estado: "En preparación",
-    fecha: "19/10/2026",
-  },
-  {
-    id: 103,
-    huesped: "Sophie Laurent",
-    habitacion: "Habitación 07",
-    productos: "1 desayuno continental",
-    total: 6,
-    estado: "Entregado",
-    fecha: "19/10/2026",
-  },
-];
 
 const estados: EstadoPedido[] = [
   "Pendiente",
@@ -58,9 +19,13 @@ const estados: EstadoPedido[] = [
 ];
 
 function PedidosAlimentos() {
-  const [pedidos, setPedidos] = useState(pedidosIniciales);
+  const [pedidos, setPedidos] = useState<FoodOrder[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
+
   const [nuevo, setNuevo] = useState({
     huesped: "",
     habitacion: "",
@@ -74,13 +39,28 @@ function PedidosAlimentos() {
       currency: "USD",
     });
 
-  const pedidosFiltrados = pedidos.filter((pedido) =>
-    `${pedido.huesped} ${pedido.habitacion} ${pedido.productos}`
-      .toLowerCase()
-      .includes(busqueda.toLowerCase())
-  );
+  const cargarPedidos = useCallback(async (query = "") => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await foodOrderService.getAll(query);
+      setPedidos(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al cargar los pedidos.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const registrarPedido = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      cargarPedidos(busqueda);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [busqueda, cargarPedidos]);
+
+  const registrarPedido = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const total = Number(nuevo.total);
@@ -89,38 +69,45 @@ function PedidosAlimentos() {
       return;
     }
 
-    const pedido: Pedido = {
-      id: Date.now(),
-      huesped: nuevo.huesped.trim(),
-      habitacion: nuevo.habitacion,
-      productos: nuevo.productos.trim(),
-      total,
-      estado: "Pendiente",
-      fecha: new Date().toLocaleDateString("es-NI"),
-    };
+    try {
+      setSubmitting(true);
+      await foodOrderService.create({
+        huesped: nuevo.huesped.trim(),
+        habitacion: nuevo.habitacion,
+        productos: nuevo.productos.trim(),
+        total,
+      });
 
-    setPedidos((anteriores) => [pedido, ...anteriores]);
-    setNuevo({
-      huesped: "",
-      habitacion: "",
-      productos: "",
-      total: "",
-    });
-    setMostrarFormulario(false);
+      setNuevo({
+        huesped: "",
+        habitacion: "",
+        productos: "",
+        total: "",
+      });
+      setMostrarFormulario(false);
+      await cargarPedidos(busqueda);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al registrar el pedido.";
+      alert(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const cambiarEstado = (id: number, estado: EstadoPedido) => {
-    setPedidos((anteriores) =>
-      anteriores.map((pedido) =>
-        pedido.id === id ? { ...pedido, estado } : pedido
-      )
-    );
+  const cambiarEstado = async (id: number, estado: EstadoPedido) => {
+    try {
+      await foodOrderService.updateStatus(id, estado);
+      await cargarPedidos(busqueda);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al actualizar el estado del pedido.";
+      alert(msg);
+    }
   };
 
-  const prepararMensaje = (pedido: Pedido) => {
+  const prepararMensaje = (pedido: FoodOrder) => {
     const mensaje = [
-      "Nuevo pedido - Nicabliss",
-      `Pedido: #${pedido.id}`,
+      "Nuevo pedido - Nicabliss Hotel",
+      `Pedido: ${pedido.orderCode || `#PED-${pedido.id}`}`,
       `Huésped: ${pedido.huesped}`,
       `Habitación: ${pedido.habitacion}`,
       `Productos: ${pedido.productos}`,
@@ -132,17 +119,11 @@ function PedidosAlimentos() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const pendientes = pedidos.filter(
-    (p) => p.estado === "Pendiente"
-  ).length;
-
+  const pendientes = pedidos.filter((p) => p.estado === "Pendiente").length;
   const enProceso = pedidos.filter(
     (p) => p.estado === "En preparación" || p.estado === "En camino"
   ).length;
-
-  const entregados = pedidos.filter(
-    (p) => p.estado === "Entregado"
-  ).length;
+  const entregados = pedidos.filter((p) => p.estado === "Entregado").length;
 
   return (
     <main className="pedidos-page">
@@ -153,7 +134,7 @@ function PedidosAlimentos() {
           </span>
           <h1>Pedidos de alimentos</h1>
           <p>
-            Registro y seguimiento de solicitudes de huéspedes.
+            Registro y seguimiento de solicitudes de huéspedes en tiempo real.
           </p>
         </div>
 
@@ -165,6 +146,38 @@ function PedidosAlimentos() {
           + Nuevo pedido
         </button>
       </div>
+
+      {error && (
+        <div
+          style={{
+            padding: "1rem",
+            marginBottom: "1.5rem",
+            borderRadius: "8px",
+            backgroundColor: "rgba(220, 38, 38, 0.1)",
+            border: "1px solid rgba(220, 38, 38, 0.3)",
+            color: "#ef4444",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>Error de sincronización: {error}</span>
+          <button
+            type="button"
+            onClick={() => cargarPedidos(busqueda)}
+            style={{
+              padding: "0.4rem 0.8rem",
+              background: "#ef4444",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       <section className="pedidos-stats">
         <article className="pedidos-stat">
@@ -189,7 +202,7 @@ function PedidosAlimentos() {
         <div className="pedidos-panel-heading">
           <div>
             <h2>Listado de pedidos</h2>
-            <p>Seguimiento de alimentos solicitados a Villalobos</p>
+            <p>Seguimiento de alimentos solicitados con actualización instantánea</p>
           </div>
 
           <input
@@ -214,10 +227,10 @@ function PedidosAlimentos() {
             </thead>
 
             <tbody>
-              {pedidosFiltrados.map((pedido) => (
+              {pedidos.map((pedido) => (
                 <tr key={pedido.id}>
                   <td>
-                    <strong>#{pedido.id}</strong>
+                    <strong>{pedido.orderCode || `#PED-${pedido.id}`}</strong>
                     <small>{pedido.fecha}</small>
                   </td>
                   <td>
@@ -258,18 +271,22 @@ function PedidosAlimentos() {
             </tbody>
           </table>
 
-          {pedidosFiltrados.length === 0 && (
+          {loading && (
+            <p style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)" }}>
+              Cargando pedidos...
+            </p>
+          )}
+
+          {!loading && pedidos.length === 0 && (
             <p className="pedidos-empty">
-              No se encontraron pedidos.
+              No se encontraron pedidos registrados.
             </p>
           )}
         </div>
       </section>
 
       <p className="pedidos-notice">
-        Los pedidos son de demostración. WhatsApp se abre con
-        el mensaje preparado, pero el envío debe confirmarse
-        manualmente.
+        Pedidos sincronizados en tiempo real con Nicabliss API. Al presionar Enviar por WhatsApp, se abre la conversación con los datos preformateados.
       </p>
 
       {mostrarFormulario && (
@@ -281,7 +298,7 @@ function PedidosAlimentos() {
                 type="button"
                 onClick={() => setMostrarFormulario(false)}
               >
-                ✕
+                x
               </button>
             </div>
 
@@ -293,6 +310,7 @@ function PedidosAlimentos() {
                 onChange={(e) =>
                   setNuevo({ ...nuevo, huesped: e.target.value })
                 }
+                placeholder="Nombre del huésped"
               />
 
               <label>Habitación</label>
@@ -335,6 +353,7 @@ function PedidosAlimentos() {
                 onChange={(e) =>
                   setNuevo({ ...nuevo, total: e.target.value })
                 }
+                placeholder="0.00"
               />
 
               <div className="pedidos-modal-actions">
@@ -342,11 +361,16 @@ function PedidosAlimentos() {
                   type="button"
                   className="pedidos-cancel"
                   onClick={() => setMostrarFormulario(false)}
+                  disabled={submitting}
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="pedidos-primary">
-                  Guardar pedido
+                <button
+                  type="submit"
+                  className="pedidos-primary"
+                  disabled={submitting}
+                >
+                  {submitting ? "Guardando..." : "Guardar pedido"}
                 </button>
               </div>
             </form>

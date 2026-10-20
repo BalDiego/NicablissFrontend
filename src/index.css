@@ -1,6 +1,6 @@
 
 :root {
-  font-family: Inter, "Segoe UI", sans-serif;
+  font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
   color: #253a32;
   background: #f7f9f7;
   font-synthesis: none;
@@ -9,28 +9,35 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
-html,
-body {
+html, body {
   min-width: 320px;
   min-height: 100%;
   margin: 0;
+  padding: 0;
+  overflow-x: hidden;
 }
 
 body {
   min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
 }
 
-button,
-input {
+button, input, select, textarea {
   font: inherit;
 }
 
-button:focus-visible,
-a:focus-visible {
+/* Evitar zoom automático indeseado en inputs en dispositivos iOS */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+button:focus-visible, a:focus-visible {
   outline: 3px solid #8ab6a5;
   outline-offset: 3px;
 }
@@ -38,4 +45,116 @@ a:focus-visible {
 ::selection {
   background: #d5e7df;
   color: #193c31;
+}
+
+/* =========================================================
+   REGLAS RESPONSIVAS GLOBALES PARA TODOS LOS MÓDULOS DEL SISTEMA
+   ========================================================= */
+
+/* Adaptación universal de tablas */
+.huespedes-panel,
+.cobros-panel,
+.pedidos-panel,
+.lavanderia-panel,
+.caja-panel,
+.usuarios-panel,
+.transactions-panel,
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Adaptación de cuadrículas KPI en tablets y móviles */
+@media (max-width: 1024px) {
+  .huespedes-stats,
+  .cobros-stats,
+  .pedidos-stats,
+  .lavanderia-stats,
+  .caja-stats,
+  .usuarios-stats,
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .huespedes-stats,
+  .cobros-stats,
+  .pedidos-stats,
+  .lavanderia-stats,
+  .caja-stats,
+  .usuarios-stats,
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Encabezados apilados en móvil para que los botones nunca se salgan */
+  .huespedes-heading,
+  .cobros-header,
+  .pedidos-heading,
+  .lavanderia-header,
+  .caja-heading,
+  .usuarios-heading,
+  .page-heading {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+  }
+
+  .huespedes-heading button,
+  .cobros-header button,
+  .pedidos-heading button,
+  .lavanderia-header button,
+  .caja-heading button,
+  .usuarios-heading button,
+  .page-heading button,
+  .huespedes-primary,
+  .usuarios-primary-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Paneles y barras de búsqueda */
+  .huespedes-panel-header,
+  .cobros-panel-header,
+  .usuarios-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding: 16px !important;
+  }
+
+  .huespedes-panel-header input,
+  .cobros-panel-header input,
+  .usuarios-search-box {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Adaptación universal para todos los modales del hotel */
+.huespedes-modal-overlay,
+.cobros-modal-overlay,
+.caja-modal-overlay,
+.modal-overlay {
+  padding: 12px !important;
+  overflow-y: auto !important;
+  align-items: center !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+.huespedes-modal,
+.cobros-modal,
+.caja-modal,
+.pedidos-modal,
+.lavanderia-modal,
+.modal-card {
+  max-height: calc(100dvh - 24px) !important;
+  width: 100% !important;
+  margin: auto !important;
+  box-sizing: border-box !important;
 }

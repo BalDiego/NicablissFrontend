@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import type { Pantalla, NavItem } from "../types";
+import { authService } from "../services/auth.service";
 import "./AppLayout.css";
 
 type AppLayoutProps = {
@@ -13,34 +14,40 @@ const navItems: NavItem[] = [
   {
     id: "dashboard",
     label: "Dashboard",
-    icon: "▦",
+    icon: "01",
   },
   {
     id: "huespedes",
     label: "Huéspedes y estancias",
-    icon: "♙",
+    icon: "02",
   },
   {
     id: "cobros",
     label: "Cuentas y cobros",
-    icon: "$",
+    icon: "03",
   },
   {
     id: "pedidos",
     label: "Pedidos de alimentos",
-    icon: "▤",
+    icon: "04",
     badge: 3,
   },
   {
     id: "lavanderia",
     label: "Lavandería",
-    icon: "◈",
+    icon: "05",
     badge: 2,
   },
   {
     id: "caja",
     label: "Caja y cierres",
-    icon: "▣",
+    icon: "06",
+  },
+  {
+    id: "usuarios",
+    label: "Usuarios y roles",
+    icon: "07",
+    eyebrow: "ADMIN",
   },
 ];
 
@@ -56,7 +63,7 @@ type Notification = {
 const initialNotifications: Notification[] = [
   {
     id: 1,
-    icon: "🍽",
+    icon: "P",
     title: "Nueva orden de cocina #PED-024",
     desc: "Habitación 01 solicitó 2 desayunos americanos",
     time: "Hace 10 min",
@@ -64,7 +71,7 @@ const initialNotifications: Notification[] = [
   },
   {
     id: 2,
-    icon: "🧺",
+    icon: "L",
     title: "Lavandería lista para entrega",
     desc: "Sophie Laurent (Hab. 07) - 2 prendas listas",
     time: "Hace 25 min",
@@ -72,7 +79,7 @@ const initialNotifications: Notification[] = [
   },
   {
     id: 3,
-    icon: "💰",
+    icon: "C",
     title: "Cobro registrado",
     desc: "Pago completo recibido de María González ($40.00)",
     time: "Hace 1 hora",
@@ -94,6 +101,22 @@ export default function AppLayout({
 
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const user = authService.getStoredUser();
+
+  const getInitials = (name?: string) => {
+    if (!name) return "AD";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const getRoleLabel = (role?: string) => {
+    if (role === "ADMIN") return "Administrador";
+    if (role === "RECEPTIONIST") return "Recepción";
+    if (role === "STAFF") return "Staff Operativo";
+    return "Personal";
+  };
 
   // Close popovers on click outside
   useEffect(() => {
@@ -118,30 +141,31 @@ export default function AppLayout({
     };
   }, []);
 
-  const currentItem = navItems.find((item) => item.id === pantallaActual) || navItems[0];
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const handleNavClick = (id: Pantalla) => {
-    onNavigate(id);
-    if (mobileOpen) setMobileOpen(false);
+  const handleNavClick = (destino: Pantalla) => {
+    onNavigate(destino);
+    setMobileOpen(false);
   };
 
+  const currentItem = navItems.find((item) => item.id === pantallaActual) || navItems[0];
+
   return (
-    <div className="app-layout-shell">
-      {/* Mobile Backdrop */}
+    <div className="app-shell">
+      {/* Mobile Backdrop Overlay */}
       {mobileOpen && (
         <div
-          className="mobile-overlay"
+          className="mobile-backdrop"
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
       )}
 
-      {/* Adaptive Sidebar */}
+      {/* Main Sidebar */}
       <aside
         className={`app-sidebar ${isCollapsed ? "is-collapsed" : ""} ${
           mobileOpen ? "is-mobile-open" : ""
@@ -162,6 +186,7 @@ export default function AppLayout({
             </div>
           </button>
 
+          {/* Desktop collapse button */}
           <button
             type="button"
             className="sidebar-collapse-btn"
@@ -169,7 +194,18 @@ export default function AppLayout({
             title={isCollapsed ? "Expandir menú lateral" : "Colapsar menú lateral"}
             aria-label={isCollapsed ? "Expandir menú" : "Colapsar menú"}
           >
-            {isCollapsed ? "»" : "«"}
+            {isCollapsed ? "→" : "←"}
+          </button>
+
+          {/* Mobile close button */}
+          <button
+            type="button"
+            className="sidebar-close-mobile-btn"
+            onClick={() => setMobileOpen(false)}
+            title="Cerrar menú lateral"
+            aria-label="Cerrar menú"
+          >
+            ✕
           </button>
         </div>
 
@@ -189,6 +225,21 @@ export default function AppLayout({
                   >
                     <span className="nav-item-icon">{item.icon}</span>
                     <span className="nav-item-label">{item.label}</span>
+                    {item.eyebrow && (
+                      <span
+                        style={{
+                          fontSize: "9px",
+                          fontWeight: 800,
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background: "#e0e7ff",
+                          color: "#3730a3",
+                          marginLeft: "auto",
+                        }}
+                      >
+                        {item.eyebrow}
+                      </span>
+                    )}
                     {item.badge !== undefined && (
                       <span className="nav-item-badge">{item.badge}</span>
                     )}
@@ -209,13 +260,13 @@ export default function AppLayout({
             aria-label="Menú de usuario"
           >
             <div className="user-avatar-badge">
-              AD
+              {getInitials(user?.fullName || user?.username)}
               <span className="user-status-dot" />
             </div>
 
             <div className="user-details">
-              <strong className="user-name">Administrador</strong>
-              <span className="user-role">Turno Recepción</span>
+              <strong className="user-name">{user?.fullName || "Administrador"}</strong>
+              <span className="user-role">{getRoleLabel(user?.role)}</span>
             </div>
 
             <span className="user-options-trigger">⋯</span>
@@ -225,9 +276,20 @@ export default function AppLayout({
           {showUserMenu && (
             <div className="user-menu-popover">
               <div className="user-menu-info-card">
-                <strong>Administrador Principal</strong>
-                <span>admin@nicabliss.com · Recepción</span>
+                <strong>{user?.fullName || "Usuario"}</strong>
+                <span>{user?.email || "usuario@nicabliss.com"} • {getRoleLabel(user?.role)}</span>
               </div>
+
+              <button
+                type="button"
+                className="user-menu-action"
+                onClick={() => {
+                  setShowUserMenu(false);
+                  handleNavClick("usuarios");
+                }}
+              >
+                👥 Gestionar usuarios y roles
+              </button>
 
               <button
                 type="button"
@@ -237,7 +299,7 @@ export default function AppLayout({
                   window.print();
                 }}
               >
-                <span>🖨️</span> Imprimir reporte rápido
+                🖨️ Imprimir reporte rápido
               </button>
 
               <button
@@ -248,7 +310,7 @@ export default function AppLayout({
                   onLogout();
                 }}
               >
-                <span>🚪</span> Cerrar sesión
+                🚪 Cerrar sesión
               </button>
             </div>
           )}
@@ -261,21 +323,36 @@ export default function AppLayout({
       >
         {/* Persistent Sticky Top Header */}
         <header className="app-header">
-          {/* Breadcrumbs with fluid module feedback */}
-          <nav className="header-breadcrumbs" aria-label="Ruta de navegación">
+          <div className="header-left">
+            {/* Hamburger button for mobile */}
             <button
               type="button"
-              className="breadcrumb-root-btn"
-              onClick={() => onNavigate("dashboard")}
+              className="mobile-hamburger-btn"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Abrir menú de navegación"
+              title="Abrir menú"
             >
-              Nicabliss
+              <span className="hamburger-bar" />
+              <span className="hamburger-bar" />
+              <span className="hamburger-bar" />
             </button>
-            <span className="breadcrumb-divider">/</span>
-            <span className="breadcrumb-current" key={pantallaActual}>
-              <span>{currentItem.icon}</span>
-              <span>{currentItem.label}</span>
-            </span>
-          </nav>
+
+            {/* Breadcrumbs with fluid module feedback */}
+            <nav className="header-breadcrumbs" aria-label="Ruta de navegación">
+              <button
+                type="button"
+                className="breadcrumb-root-btn"
+                onClick={() => onNavigate("dashboard")}
+              >
+                Nicabliss
+              </button>
+              <span className="breadcrumb-divider">/</span>
+              <span className="breadcrumb-current" key={pantallaActual}>
+                <span>{currentItem.icon}</span>
+                <span>{currentItem.label}</span>
+              </span>
+            </nav>
+          </div>
 
           {/* Header Right Actions */}
           <div className="header-actions">
@@ -293,7 +370,7 @@ export default function AppLayout({
                 aria-label="Ver notificaciones del hotel"
                 title="Notificaciones"
               >
-                <span>🔔</span>
+                <span style={{ fontSize: "11px", fontWeight: 700 }}>AVISOS</span>
                 {unreadCount > 0 && <span className="icon-unread-dot" />}
               </button>
 
@@ -355,7 +432,7 @@ export default function AppLayout({
               onClick={() => setShowUserMenu(!showUserMenu)}
               title="Opciones de cuenta"
             >
-              AD
+              {getInitials(user?.fullName || user?.username)}
             </button>
           </div>
         </header>

@@ -1,9 +1,8 @@
-
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { laundryService } from "./services/laundry.service";
+import type { LaundryOrder, DetallePrenda } from "./services/types";
 import "./Lavanderia.css";
 
-// Tarifa provisional.
-// Posteriormente se obtendrá del catálogo de servicios.
 const PRECIO_POR_PRENDA = 0.5;
 
 const TIPOS_PRENDA = [
@@ -30,23 +29,6 @@ type EstadoLavanderia =
   | "Entregado"
   | "Cancelado";
 
-type DetallePrenda = {
-  tipo: TipoPrenda;
-  cantidad: number;
-};
-
-type SolicitudLavanderia = {
-  id: number;
-  huesped: string;
-  habitacion: string;
-  prendas: DetallePrenda[];
-  totalPrendas: number;
-  total: number;
-  estado: EstadoLavanderia;
-  fecha: string;
-  observaciones: string;
-};
-
 const estados: EstadoLavanderia[] = [
   "Pendiente",
   "En proceso",
@@ -55,65 +37,18 @@ const estados: EstadoLavanderia[] = [
   "Cancelado",
 ];
 
-const solicitudesIniciales: SolicitudLavanderia[] = [
-  {
-    id: 1001,
-    huesped: "María González",
-    habitacion: "Habitación 01",
-    prendas: [
-      { tipo: "Camisa", cantidad: 2 },
-      { tipo: "Pantalón", cantidad: 1 },
-      { tipo: "Par de calcetines", cantidad: 2 },
-    ],
-    totalPrendas: 5,
-    total: 2.5,
-    estado: "Pendiente",
-    fecha: "19/10/2026",
-    observaciones: "Entregar en recepción",
-  },
-  {
-    id: 1002,
-    huesped: "Carlos Mendoza",
-    habitacion: "Habitación 04",
-    prendas: [
-      { tipo: "Camiseta", cantidad: 3 },
-      { tipo: "Short", cantidad: 1 },
-    ],
-    totalPrendas: 4,
-    total: 2,
-    estado: "En proceso",
-    fecha: "19/10/2026",
-    observaciones: "",
-  },
-  {
-    id: 1003,
-    huesped: "Sophie Laurent",
-    habitacion: "Habitación 07",
-    prendas: [
-      { tipo: "Vestido", cantidad: 1 },
-      { tipo: "Par de calcetines", cantidad: 1 },
-    ],
-    totalPrendas: 2,
-    total: 1,
-    estado: "Entregado",
-    fecha: "19/10/2026",
-    observaciones: "",
-  },
-];
-
 const crearDetalleVacio = (): DetallePrenda[] => [
   { tipo: "Camisa", cantidad: 1 },
 ];
 
 function Lavanderia() {
-  const [solicitudes, setSolicitudes] = useState(
-    solicitudesIniciales
-  );
-
+  const [solicitudes, setSolicitudes] = useState<LaundryOrder[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
-  const [mostrarFormulario, setMostrarFormulario] =
-    useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
   const [nuevo, setNuevo] = useState({
     huesped: "",
@@ -136,6 +71,27 @@ function Lavanderia() {
   );
 
   const totalNuevo = cantidadTotal * PRECIO_POR_PRENDA;
+
+  const cargarSolicitudes = useCallback(async (query = "") => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await laundryService.getAll(query);
+      setSolicitudes(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al cargar solicitudes de lavandería.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      cargarSolicitudes(busqueda);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [busqueda, cargarSolicitudes]);
 
   const pendientes = solicitudes.filter(
     (s) => s.estado === "Pendiente"
@@ -160,8 +116,7 @@ function Lavanderia() {
         .includes(busqueda.toLowerCase());
 
     const coincideEstado =
-      filtroEstado === "Todos" ||
-      s.estado === filtroEstado;
+      filtroEstado === "Todos" || s.estado === filtroEstado;
 
     return coincideBusqueda && coincideEstado;
   });
@@ -213,7 +168,7 @@ function Lavanderia() {
     setPrendasNuevas(crearDetalleVacio());
   };
 
-  const registrarSolicitud = (
+  const registrarSolicitud = async (
     e: React.FormEvent<HTMLFormElement>
   ) => {
     e.preventDefault();
@@ -226,16 +181,13 @@ function Lavanderia() {
     if (
       prendasNuevas.length === 0 ||
       prendasNuevas.some(
-        (p) =>
-          !Number.isInteger(p.cantidad) ||
-          p.cantidad < 1
+        (p) => !Number.isInteger(p.cantidad) || p.cantidad < 1
       )
     ) {
       alert("Agrega prendas con cantidades válidas.");
       return;
     }
 
-    // Agrupar prendas repetidas.
     const agrupadas = prendasNuevas.reduce<DetallePrenda[]>(
       (resultado, prenda) => {
         const existente = resultado.find(
@@ -253,42 +205,36 @@ function Lavanderia() {
       []
     );
 
-    const cantidad = agrupadas.reduce(
-      (suma, prenda) => suma + prenda.cantidad,
-      0
-    );
+    try {
+      setSubmitting(true);
+      await laundryService.create({
+        huesped: nuevo.huesped.trim(),
+        habitacion: nuevo.habitacion,
+        prendas: agrupadas,
+        observaciones: nuevo.observaciones.trim(),
+      });
 
-    const solicitud: SolicitudLavanderia = {
-      id: Date.now(),
-      huesped: nuevo.huesped.trim(),
-      habitacion: nuevo.habitacion,
-      prendas: agrupadas,
-      totalPrendas: cantidad,
-      total: cantidad * PRECIO_POR_PRENDA,
-      estado: "Pendiente",
-      fecha: new Date().toLocaleDateString("es-NI"),
-      observaciones: nuevo.observaciones.trim(),
-    };
-
-    setSolicitudes((anteriores) => [
-      solicitud,
-      ...anteriores,
-    ]);
-
-    cerrarFormulario();
+      cerrarFormulario();
+      await cargarSolicitudes(busqueda);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al registrar la solicitud.";
+      alert(msg);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const cambiarEstado = (
+  const cambiarEstado = async (
     id: number,
     estado: EstadoLavanderia
   ) => {
-    setSolicitudes((anteriores) =>
-      anteriores.map((solicitud) =>
-        solicitud.id === id
-          ? { ...solicitud, estado }
-          : solicitud
-      )
-    );
+    try {
+      await laundryService.updateStatus(id, estado);
+      await cargarSolicitudes(busqueda);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error al cambiar el estado del servicio.";
+      alert(msg);
+    }
   };
 
   return (
@@ -302,8 +248,7 @@ function Lavanderia() {
           <h1>Gestión de lavandería</h1>
 
           <p>
-            Registro, seguimiento y cálculo automático
-            de servicios de lavandería.
+            Registro, seguimiento y cálculo automático de servicios de lavandería.
           </p>
         </div>
 
@@ -316,18 +261,49 @@ function Lavanderia() {
         </button>
       </div>
 
+      {error && (
+        <div
+          style={{
+            padding: "1rem",
+            marginBottom: "1.5rem",
+            borderRadius: "8px",
+            backgroundColor: "rgba(220, 38, 38, 0.1)",
+            border: "1px solid rgba(220, 38, 38, 0.3)",
+            color: "#ef4444",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span>Error de sincronización: {error}</span>
+          <button
+            type="button"
+            onClick={() => cargarSolicitudes(busqueda)}
+            style={{
+              padding: "0.4rem 0.8rem",
+              background: "#ef4444",
+              color: "#fff",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       <section className="lavanderia-tarifa">
         <div>
-          <span>Tarifa vigente de demostración</span>
+          <span>Tarifa del servicio</span>
           <strong>{moneda(PRECIO_POR_PRENDA)}</strong>
           <p>
-            Por prenda. Un par de calcetines equivale
-            a una prenda.
+            Por prenda procesada. Cálculo automático respaldado en el servidor central.
           </p>
         </div>
 
         <span className="lavanderia-tarifa-badge">
-          Precio fijo
+          Precio estándar
         </span>
       </section>
 
@@ -357,7 +333,7 @@ function Lavanderia() {
         <div className="lavanderia-panel-header">
           <div>
             <h2>Solicitudes de lavandería</h2>
-            <p>Control de prendas recibidas y entregadas</p>
+            <p>Control de prendas recibidas y entregadas en tiempo real</p>
           </div>
 
           <div className="lavanderia-filtros">
@@ -413,8 +389,8 @@ function Lavanderia() {
 
                   <td>
                     <div className="lavanderia-detalles">
-                      {solicitud.prendas.map((prenda) => (
-                        <span key={prenda.tipo}>
+                      {solicitud.prendas.map((prenda, idx) => (
+                        <span key={`${prenda.tipo}-${idx}`}>
                           {prenda.cantidad} × {prenda.tipo}
                         </span>
                       ))}
@@ -458,18 +434,22 @@ function Lavanderia() {
             </tbody>
           </table>
 
-          {solicitudesFiltradas.length === 0 && (
+          {loading && (
+            <p style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-muted)" }}>
+              Cargando solicitudes...
+            </p>
+          )}
+
+          {!loading && solicitudesFiltradas.length === 0 && (
             <p className="lavanderia-vacio">
-              No se encontraron solicitudes.
+              No se encontraron solicitudes registradas.
             </p>
           )}
         </div>
       </section>
 
       <p className="lavanderia-nota">
-        Datos de demostración. Los cargos de lavandería
-        se integrarán posteriormente con Cuentas y cobros
-        mediante el backend de C# y PostgreSQL.
+        Servicio de lavandería sincronizado directamente con Nicabliss API. Registro y cálculo de tarifas procesado en el servidor.
       </p>
 
       {mostrarFormulario && (
@@ -490,7 +470,7 @@ function Lavanderia() {
                 onClick={cerrarFormulario}
                 aria-label="Cerrar"
               >
-                ✕
+                x
               </button>
             </div>
 
@@ -601,7 +581,7 @@ function Lavanderia() {
                     onClick={() => eliminarPrenda(indice)}
                     aria-label="Eliminar prenda"
                   >
-                    ✕
+                    x
                   </button>
                 </div>
               ))}
@@ -647,6 +627,7 @@ function Lavanderia() {
                   type="button"
                   className="lavanderia-cancel"
                   onClick={cerrarFormulario}
+                  disabled={submitting}
                 >
                   Cancelar
                 </button>
@@ -654,8 +635,9 @@ function Lavanderia() {
                 <button
                   type="submit"
                   className="lavanderia-primary"
+                  disabled={submitting}
                 >
-                  Registrar solicitud
+                  {submitting ? "Registrando..." : "Registrar solicitud"}
                 </button>
               </div>
             </form>

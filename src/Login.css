@@ -5,9 +5,10 @@
   justify-content: center;
   background: radial-gradient(circle at 50% 20%, #eef5f1 0%, #e2ece6 100%);
   padding: 24px;
-  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  font-family: inherit;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .login-page::before {
@@ -34,6 +35,7 @@
   text-align: center;
   position: relative;
   z-index: 2;
+  box-sizing: border-box;
   animation: loginCardPop 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -102,6 +104,7 @@
   font-size: 14.5px;
   background: #fdfefe;
   color: #1a2f26;
+  box-sizing: border-box;
   transition: all 0.2s ease;
 }
 
@@ -162,4 +165,24 @@
   font-size: 11.5px;
   color: #8fa097;
   letter-spacing: 0.5px;
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 16px;
+  }
+  .login-card {
+    padding: 32px 20px;
+    border-radius: 16px;
+  }
+  .login-card h1 {
+    font-size: 22px;
+  }
+  .login-logo {
+    width: 52px;
+    height: 52px;
+    font-size: 26px;
+    border-radius: 14px;
+    margin-bottom: 14px;
+  }
 }
