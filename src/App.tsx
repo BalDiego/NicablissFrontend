@@ -1,5 +1,6 @@
-
 import { useState } from "react";
+import type { Pantalla } from "./types";
+import AppLayout from "./components/AppLayout";
 import Dashboard from "./Dashboard";
 import Huespedes from "./Huespedes";
 import CuentasCobros from "./CuentasCobros";
@@ -8,14 +9,6 @@ import Lavanderia from "./Lavanderia";
 import CajaCierres from "./CajaCierres";
 import "./App.css";
 import "./Login.css";
-
-type Pantalla =
-  | "dashboard"
-  | "huespedes"
-  | "cobros"
-  | "pedidos"
-  | "lavanderia"
-  | "caja";
 
 function App() {
   // Estados del inicio de sesión
@@ -36,134 +29,40 @@ function App() {
       setPantalla("dashboard");
       setError("");
     } else {
-      setError("Usuario o contraseña incorrectos");
+      setError("Usuario o contraseña incorrectos (Usa: admin / 12345)");
     }
   };
 
+  const cerrarSesion = () => {
+    setAutenticado(false);
+    setUsuario("");
+    setPassword("");
+    setError("");
+    setPantalla("dashboard");
+  };
+
   // Navegación entre pantallas
-const navegar = (destino: string) => {
-  if (
-    destino === "dashboard" ||
-    destino === "huespedes" ||
-    destino === "cobros" ||
-    destino === "pedidos" ||
-    destino === "lavanderia" ||
-    destino === "caja"
-  ) {
+  const navegar = (destino: Pantalla) => {
     setPantalla(destino);
-  }
-};
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-  // Si el usuario inició sesión
+  // Si el usuario inició sesión, mostramos el layout unificado persistente
   if (autenticado) {
-    // Pantalla de Huéspedes y Estancias
-    if (pantalla === "huespedes") {
-      return (
-        <div>
-          <button
-            type="button"
-            onClick={() => navegar("dashboard")}
-            style={{
-              margin: "20px 38px 0",
-              padding: "10px 16px",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
-            ← Volver al Dashboard
-          </button>
-
-          <Huespedes />
-        </div>
-      );
-    }
-
-    // Pantalla de Cuentas y Cobros
-    if (pantalla === "cobros") {
-      return (
-        <div>
-          <button
-            type="button"
-            onClick={() => navegar("dashboard")}
-            style={{
-              margin: "20px 38px 0",
-              padding: "10px 16px",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
-            ← Volver al Dashboard
-          </button>
-
-          <CuentasCobros />
-        </div>
-      );
-    }
-    if (pantalla === "pedidos") {
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => navegar("dashboard")}
-        style={{
-          margin: "20px 38px 0",
-          padding: "10px 16px",
-          borderRadius: "8px",
-          cursor: "pointer",
-        }}
+    return (
+      <AppLayout
+        pantallaActual={pantalla}
+        onNavigate={navegar}
+        onLogout={cerrarSesion}
       >
-        ← Volver al Dashboard
-      </button>
-
-      <PedidosAlimentos />
-    </div>
-  );
-}
-   if (pantalla === "lavanderia") {
-      return (
-        <div>
-          <button
-            type="button"
-            onClick={() => navegar("dashboard")}
-            style={{
-              margin: "20px 38px 0",
-              padding: "10px 16px",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
-            ← Volver al Dashboard
-          </button>
-
-          <Lavanderia />
-        </div>
-      );
-    }
-
-    // Pantalla de Caja y cierres
-    if (pantalla === "caja") {
-      return (
-        <div>
-          <button
-            type="button"
-            onClick={() => navegar("dashboard")}
-            style={{
-              margin: "20px 38px 0",
-              padding: "10px 16px",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
-            ← Volver al Dashboard
-          </button>
-
-          <CajaCierres />
-        </div>
-      );
-    }
-
-    // Pantalla principal del Dashboard
-    return <Dashboard onNavigate={navegar} />;
+        {pantalla === "dashboard" && <Dashboard onNavigate={navegar} />}
+        {pantalla === "huespedes" && <Huespedes />}
+        {pantalla === "cobros" && <CuentasCobros />}
+        {pantalla === "pedidos" && <PedidosAlimentos />}
+        {pantalla === "lavanderia" && <Lavanderia />}
+        {pantalla === "caja" && <CajaCierres />}
+      </AppLayout>
+    );
   }
 
   // Pantalla de inicio de sesión
@@ -181,7 +80,7 @@ const navegar = (destino: string) => {
           <input
             id="usuario"
             type="text"
-            placeholder="Ingresa tu usuario"
+            placeholder="admin"
             value={usuario}
             onChange={(e) => setUsuario(e.target.value)}
             autoComplete="username"
@@ -193,7 +92,7 @@ const navegar = (destino: string) => {
           <input
             id="password"
             type="password"
-            placeholder="Ingresa tu contraseña"
+            placeholder="••••• (12345)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
@@ -211,8 +110,12 @@ const navegar = (destino: string) => {
           </button>
         </form>
 
+        <div className="login-hint">
+          <small>Credenciales demo: <strong>admin</strong> / <strong>12345</strong></small>
+        </div>
+
         <span className="login-footer">
-          Nicabliss © 2026
+          Nicabliss © 2026 · Sistema Interno
         </span>
       </div>
     </div>
@@ -220,4 +123,3 @@ const navegar = (destino: string) => {
 }
 
 export default App;
-

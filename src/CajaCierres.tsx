@@ -243,6 +243,7 @@ function CajaCierres() {
     }
 
     const cierre: CierreCaja = {
+      // eslint-disable-next-line react-hooks/purity
       id: Date.now(),
       responsable: sesion.responsable,
       apertura: sesion.apertura,
@@ -258,10 +259,7 @@ function CajaCierres() {
       movimientos: [...sesion.movimientos],
     };
 
-    setHistorial((anteriores) => [
-      cierre,
-      ...anteriores,
-    ]);
+    setHistorial([cierre, ...historial]);
 
     setSesion(null);
     setMostrarCierre(false);
