@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Pantalla } from "./types";
+import { useNavigate } from "react-router-dom";
 import { dashboardService } from "./services/dashboard.service";
 import { foodOrderService } from "./services/foodOrder.service";
 import type { DashboardMetrics, FoodOrder } from "./services/types";
@@ -36,11 +36,8 @@ const fallbackStats = [
   },
 ];
 
-type DashboardProps = {
-  onNavigate: (destino: Pantalla) => void;
-};
-
-export default function Dashboard({ onNavigate }: DashboardProps) {
+export default function Dashboard() {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [pendingOrders, setPendingOrders] = useState<FoodOrder[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -174,7 +171,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               className="panel-link"
               onClick={(e) => {
                 e.preventDefault();
-                onNavigate("cobros");
+                navigate("/billing");
               }}
             >
               Ver todas <span>→</span>
@@ -254,7 +251,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               className="panel-link"
               onClick={(e) => {
                 e.preventDefault();
-                onNavigate("pedidos");
+                navigate("/food-orders");
               }}
             >
               Ver todos <span>→</span>

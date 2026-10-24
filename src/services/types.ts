@@ -1,15 +1,103 @@
+export type UserRole = "ADMIN" | "RECEPTIONIST" | "STAFF";
+
 export interface User {
   id: string;
   username: string;
   email: string;
   fullName: string;
-  role: "ADMIN" | "RECEPTIONIST" | "STAFF";
+  role: UserRole;
   createdAt: string;
 }
 
 export interface AuthResponse {
   token: string;
   user: User;
+}
+
+export interface Customer {
+  id: number;
+  nombre: string;
+  apellido?: string;
+  documento: string;
+  telefono?: string;
+  correo?: string;
+  direccion?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ReservationStatus =
+  | "Pendiente"
+  | "Confirmada"
+  | "Cancelada"
+  | "CheckIn"
+  | "Finalizada"
+  | "NoShow";
+
+export interface Room {
+  id: number;
+  code: string;
+  name: string;
+  active: boolean;
+  available: boolean;
+}
+
+export interface Reservation {
+  id: number;
+  codigoReserva: string;
+  customerId: number;
+  customerName: string;
+  customerDocument: string;
+  roomId: number;
+  habitacion: string;
+  fechaEntrada: string;
+  fechaSalida: string;
+  totalReserva: number;
+  depositType: "PERCENTAGE" | "FIXED";
+  depositValue: number;
+  depositoRequerido: number;
+  abonado: number;
+  saldo: number;
+  estado: ReservationStatus;
+  observaciones?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Payment {
+  id: number;
+  paymentNumber: string;
+  customerId: number;
+  reservationId?: number;
+  amount: number;
+  paymentMethod: MetodoPago;
+  reference?: string;
+  kind: "PAYMENT" | "REVERSAL";
+  status: "POSTED" | "REVERSED";
+  reversesPaymentId?: number;
+  paymentDate: string;
+  receivedBy: string;
+  receivedByName: string;
+  cashSessionId: number;
+  voidedAt?: string;
+  voidReason?: string;
+  createdAt: string;
+}
+
+export interface PaymentReceipt {
+  paymentNumber: string;
+  amount: number;
+  paymentMethod: MetodoPago;
+  reference?: string;
+  paymentDate: string;
+  kind: "PAYMENT" | "REVERSAL";
+  status: "POSTED" | "REVERSED";
+  receivedByName: string;
+  reservationCode: string;
+  room: string;
+  customerName: string;
+  customerDocument: string;
 }
 
 export interface Guest {

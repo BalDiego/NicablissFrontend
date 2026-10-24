@@ -64,7 +64,8 @@ export default function UsuariosRoles() {
   }, []);
 
   useEffect(() => {
-    cargarUsuarios();
+    const timer = window.setTimeout(() => void cargarUsuarios(), 0);
+    return () => window.clearTimeout(timer);
   }, [cargarUsuarios]);
 
   // Manejo de Creación
@@ -527,7 +528,7 @@ export default function UsuariosRoles() {
                       id="crear-role"
                       className="form-select"
                       value={formNuevo.role}
-                      onChange={(e) => setFormNuevo({ ...formNuevo, role: e.target.value as any })}
+                      onChange={(e) => setFormNuevo({ ...formNuevo, role: e.target.value as User["role"] })}
                     >
                       <option value="RECEPTIONIST">🛎️ RECEPTIONIST</option>
                       <option value="ADMIN">🛡️ ADMIN</option>
@@ -633,7 +634,7 @@ export default function UsuariosRoles() {
                       className="form-select"
                       value={formEditar.role}
                       disabled={modalEditar.id === "usr_admin_001" || modalEditar.username === "admin"}
-                      onChange={(e) => setFormEditar({ ...formEditar, role: e.target.value as any })}
+                      onChange={(e) => setFormEditar({ ...formEditar, role: e.target.value as User["role"] })}
                     >
                       <option value="RECEPTIONIST">🛎️ RECEPTIONIST</option>
                       <option value="ADMIN">🛡️ ADMIN</option>

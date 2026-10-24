@@ -18,6 +18,14 @@ export class ApiError extends Error {
   }
 }
 
+export interface ApiSuccess<T> {
+  success: true;
+  data: T;
+  message?: string;
+}
+
+type ResponseMode = "auto" | "json" | "text" | "blob";
+
 class ApiClient {
   private baseUrl: string;
 
@@ -31,18 +39,20 @@ class ApiClient {
 
   public async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    responseMode: ResponseMode = "auto"
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
 
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...(options.headers as Record<string, string>),
-    };
+    const headers = new Headers(options.headers);
+
+    if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
 
     const token = this.getToken();
     if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+      headers.set("Authorization", `Bearer ${token}`);
     }
 
     try {
@@ -51,15 +61,21 @@ class ApiClient {
         headers,
       });
 
-      if (response.status === 401) {
+      if (response.status === 401 && token) {
         localStorage.removeItem("nicabliss_token");
         localStorage.removeItem("nicabliss_user");
         window.dispatchEvent(new CustomEvent("nicabliss:session-expired"));
       }
 
-      let data: unknown;
+      let data: unknown = undefined;
       const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
+      if (response.status === 204) {
+        data = undefined;
+      } else if (responseMode === "blob") {
+        data = await response.blob();
+      } else if (responseMode === "text") {
+        data = await response.text();
+      } else if (responseMode === "json" || (contentType && contentType.includes("application/json"))) {
         data = await response.json();
       } else {
         data = await response.text();
@@ -95,6 +111,14 @@ class ApiClient {
 
   public get<T>(endpoint: string, headers?: Record<string, string>): Promise<T> {
     return this.request<T>(endpoint, { method: "GET", headers });
+  }
+
+  public getBlob(endpoint: string, headers?: Record<string, string>): Promise<Blob> {
+    return this.request<Blob>(endpoint, { method: "GET", headers }, "blob");
+  }
+
+  public getText(endpoint: string, headers?: Record<string, string>): Promise<string> {
+    return this.request<string>(endpoint, { method: "GET", headers }, "text");
   }
 
   public post<T>(

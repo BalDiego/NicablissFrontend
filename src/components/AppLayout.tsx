@@ -1,208 +1,138 @@
-import { useState, useRef, useEffect } from "react";
-import type { Pantalla, NavItem } from "../types";
-import { authService } from "../services/auth.service";
+import { useEffect, useRef, useState } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import type { UserRole } from "../services/types";
 import "./AppLayout.css";
 
-type AppLayoutProps = {
-  pantallaActual: Pantalla;
-  onNavigate: (destino: Pantalla) => void;
-  onLogout: () => void;
-  children: React.ReactNode;
+type NavItem = {
+  path: string;
+  label: string;
+  icon: string;
+  roles: readonly UserRole[];
+  badge?: number;
 };
 
+const allRoles = ["ADMIN", "RECEPTIONIST", "STAFF"] as const;
+const managementRoles = ["ADMIN", "RECEPTIONIST"] as const;
+
 const navItems: NavItem[] = [
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    icon: "01",
-  },
-  {
-    id: "huespedes",
-    label: "Huéspedes y estancias",
-    icon: "02",
-  },
-  {
-    id: "cobros",
-    label: "Cuentas y cobros",
-    icon: "03",
-  },
-  {
-    id: "pedidos",
-    label: "Pedidos de alimentos",
-    icon: "04",
-    badge: 3,
-  },
-  {
-    id: "lavanderia",
-    label: "Lavandería",
-    icon: "05",
-    badge: 2,
-  },
-  {
-    id: "caja",
-    label: "Caja y cierres",
-    icon: "06",
-  },
-  {
-    id: "usuarios",
-    label: "Usuarios y roles",
-    icon: "07",
-    eyebrow: "ADMIN",
-  },
+  { path: "/dashboard", label: "Dashboard", icon: "01", roles: allRoles },
+  { path: "/customers", label: "Clientes", icon: "02", roles: managementRoles },
+  { path: "/reservations", label: "Reservas", icon: "03", roles: managementRoles },
+  { path: "/billing", label: "Cuentas y cobros", icon: "04", roles: managementRoles },
+  { path: "/food-orders", label: "Pedidos de alimentos", icon: "05", roles: allRoles },
+  { path: "/laundry", label: "Lavandería", icon: "06", roles: allRoles },
+  { path: "/cash", label: "Caja y cierres", icon: "07", roles: managementRoles },
+  { path: "/users", label: "Usuarios y roles", icon: "08", roles: ["ADMIN"] },
 ];
 
 type Notification = {
   id: number;
   icon: string;
   title: string;
-  desc: string;
+  description: string;
   time: string;
   read: boolean;
 };
 
-const initialNotifications: Notification[] = [
-  {
-    id: 1,
-    icon: "P",
-    title: "Nueva orden de cocina #PED-024",
-    desc: "Habitación 01 solicitó 2 desayunos americanos",
-    time: "Hace 10 min",
-    read: false,
-  },
-  {
-    id: 2,
-    icon: "L",
-    title: "Lavandería lista para entrega",
-    desc: "Sophie Laurent (Hab. 07) - 2 prendas listas",
-    time: "Hace 25 min",
-    read: false,
-  },
-  {
-    id: 3,
-    icon: "C",
-    title: "Cobro registrado",
-    desc: "Pago completo recibido de María González ($40.00)",
-    time: "Hace 1 hora",
-    read: true,
-  },
-];
+const initialNotifications: Notification[] = [];
 
-export default function AppLayout({
-  pantallaActual,
-  onNavigate,
-  onLogout,
-  children,
-}: AppLayoutProps) {
+function getInitials(name?: string): string {
+  if (!name) return "US";
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
+function getRoleLabel(role?: UserRole): string {
+  if (role === "ADMIN") return "Administrador";
+  if (role === "RECEPTIONIST") return "Recepción";
+  if (role === "STAFF") return "Staff operativo";
+  return "Personal";
+}
+
+export default function AppLayout() {
+  const { user, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
-
-  const notifRef = useRef<HTMLDivElement>(null);
+  const notificationRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  const user = authService.getStoredUser();
+  const visibleItems = navItems.filter((item) => user && item.roles.includes(user.role));
+  const currentItem =
+    visibleItems.find((item) => location.pathname.startsWith(item.path)) || visibleItems[0];
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
 
-  const getInitials = (name?: string) => {
-    if (!name) return "AD";
-    const parts = name.trim().split(" ");
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name.substring(0, 2).toUpperCase();
-  };
-
-  const getRoleLabel = (role?: string) => {
-    if (role === "ADMIN") return "Administrador";
-    if (role === "RECEPTIONIST") return "Recepción";
-    if (role === "STAFF") return "Staff Operativo";
-    return "Personal";
-  };
-
-  // Close popovers on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        notifRef.current &&
-        !notifRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target as Node;
+      if (notificationRef.current && !notificationRef.current.contains(target)) {
         setShowNotifications(false);
       }
-      if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(event.target as Node)
-      ) {
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
         setShowUserMenu(false);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const handleNavClick = (destino: Pantalla) => {
-    onNavigate(destino);
+  const goTo = (path: string) => {
+    navigate(path);
     setMobileOpen(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const currentItem = navItems.find((item) => item.id === pantallaActual) || navItems[0];
+  const signOut = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <div className="app-shell">
-      {/* Mobile Backdrop Overlay */}
       {mobileOpen && (
-        <div
+        <button
+          type="button"
           className="mobile-backdrop"
           onClick={() => setMobileOpen(false)}
-          aria-hidden="true"
+          aria-label="Cerrar menú"
         />
       )}
 
-      {/* Main Sidebar */}
       <aside
-        className={`app-sidebar ${isCollapsed ? "is-collapsed" : ""} ${
-          mobileOpen ? "is-mobile-open" : ""
-        }`}
+        className={`app-sidebar ${isCollapsed ? "is-collapsed" : ""} ${mobileOpen ? "is-mobile-open" : ""}`}
         aria-label="Menú principal de Nicabliss"
       >
         <div className="sidebar-header">
-          <button
-            type="button"
-            className="brand-wrapper"
-            onClick={() => handleNavClick("dashboard")}
-            title="Ir al Dashboard"
-          >
+          <button type="button" className="brand-wrapper" onClick={() => goTo("/dashboard")}>
             <div className="brand-emblem">N</div>
             <div className="brand-text">
               <span className="brand-title">NICABLISS</span>
               <span className="brand-subtitle">HOTEL MANAGEMENT</span>
             </div>
           </button>
-
-          {/* Desktop collapse button */}
           <button
             type="button"
             className="sidebar-collapse-btn"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            title={isCollapsed ? "Expandir menú lateral" : "Colapsar menú lateral"}
+            onClick={() => setIsCollapsed((current) => !current)}
             aria-label={isCollapsed ? "Expandir menú" : "Colapsar menú"}
           >
             {isCollapsed ? "→" : "←"}
           </button>
-
-          {/* Mobile close button */}
           <button
             type="button"
             className="sidebar-close-mobile-btn"
             onClick={() => setMobileOpen(false)}
-            title="Cerrar menú lateral"
             aria-label="Cerrar menú"
           >
             ✕
@@ -211,211 +141,125 @@ export default function AppLayout({
 
         <div className="sidebar-body">
           <div className="nav-group-label">MÓDULOS DE GESTIÓN</div>
-
           <ul className="sidebar-nav-list">
-            {navItems.map((item) => {
-              const isActive = pantallaActual === item.id;
-              return (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className={`nav-item-btn ${isActive ? "is-active" : ""}`}
-                    onClick={() => handleNavClick(item.id)}
-                    data-tooltip={item.label}
-                  >
-                    <span className="nav-item-icon">{item.icon}</span>
-                    <span className="nav-item-label">{item.label}</span>
-                    {item.eyebrow && (
-                      <span
-                        style={{
-                          fontSize: "9px",
-                          fontWeight: 800,
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          background: "#e0e7ff",
-                          color: "#3730a3",
-                          marginLeft: "auto",
-                        }}
-                      >
-                        {item.eyebrow}
-                      </span>
-                    )}
-                    {item.badge !== undefined && (
-                      <span className="nav-item-badge">{item.badge}</span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
+            {visibleItems.map((item) => (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  onClick={() => setMobileOpen(false)}
+                  className={({ isActive }) => `nav-item-btn ${isActive ? "is-active" : ""}`}
+                  data-tooltip={item.label}
+                >
+                  <span className="nav-item-icon">{item.icon}</span>
+                  <span className="nav-item-label">{item.label}</span>
+                  {item.badge !== undefined && <span className="nav-item-badge">{item.badge}</span>}
+                </NavLink>
+              </li>
+            ))}
           </ul>
         </div>
 
-        {/* Sidebar Footer with User Profile */}
         <div className="sidebar-footer" ref={userMenuRef}>
           <button
             type="button"
             className={`sidebar-user-pill ${showUserMenu ? "is-open" : ""}`}
-            onClick={() => setShowUserMenu(!showUserMenu)}
+            onClick={() => setShowUserMenu((current) => !current)}
             aria-expanded={showUserMenu}
-            aria-label="Menú de usuario"
           >
             <div className="user-avatar-badge">
               {getInitials(user?.fullName || user?.username)}
               <span className="user-status-dot" />
             </div>
-
             <div className="user-details">
-              <strong className="user-name">{user?.fullName || "Administrador"}</strong>
+              <strong className="user-name">{user?.fullName}</strong>
               <span className="user-role">{getRoleLabel(user?.role)}</span>
             </div>
-
             <span className="user-options-trigger">⋯</span>
           </button>
 
-          {/* Interactive User Popover */}
           {showUserMenu && (
             <div className="user-menu-popover">
               <div className="user-menu-info-card">
-                <strong>{user?.fullName || "Usuario"}</strong>
-                <span>{user?.email || "usuario@nicabliss.com"} • {getRoleLabel(user?.role)}</span>
+                <strong>{user?.fullName}</strong>
+                <span>{user?.email} • {getRoleLabel(user?.role)}</span>
               </div>
-
-              <button
-                type="button"
-                className="user-menu-action"
-                onClick={() => {
-                  setShowUserMenu(false);
-                  handleNavClick("usuarios");
-                }}
-              >
-                👥 Gestionar usuarios y roles
+              {user?.role === "ADMIN" && (
+                <button type="button" className="user-menu-action" onClick={() => goTo("/users")}>
+                  Gestionar usuarios y roles
+                </button>
+              )}
+              <button type="button" className="user-menu-action" onClick={() => window.print()}>
+                Imprimir vista actual
               </button>
-
-              <button
-                type="button"
-                className="user-menu-action"
-                onClick={() => {
-                  setShowUserMenu(false);
-                  window.print();
-                }}
-              >
-                🖨️ Imprimir reporte rápido
-              </button>
-
-              <button
-                type="button"
-                className="user-menu-action danger"
-                onClick={() => {
-                  setShowUserMenu(false);
-                  onLogout();
-                }}
-              >
-                🚪 Cerrar sesión
+              <button type="button" className="user-menu-action danger" onClick={signOut}>
+                Cerrar sesión
               </button>
             </div>
           )}
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div
-        className={`app-main-shell ${isCollapsed ? "sidebar-collapsed" : ""}`}
-      >
-        {/* Persistent Sticky Top Header */}
+      <div className={`app-main-shell ${isCollapsed ? "sidebar-collapsed" : ""}`}>
         <header className="app-header">
           <div className="header-left">
-            {/* Hamburger button for mobile */}
             <button
               type="button"
               className="mobile-hamburger-btn"
               onClick={() => setMobileOpen(true)}
-              aria-label="Abrir menú de navegación"
-              title="Abrir menú"
+              aria-label="Abrir menú"
             >
               <span className="hamburger-bar" />
               <span className="hamburger-bar" />
               <span className="hamburger-bar" />
             </button>
-
-            {/* Breadcrumbs with fluid module feedback */}
             <nav className="header-breadcrumbs" aria-label="Ruta de navegación">
-              <button
-                type="button"
-                className="breadcrumb-root-btn"
-                onClick={() => onNavigate("dashboard")}
-              >
-                Nicabliss
-              </button>
+              <Link className="breadcrumb-root-btn" to="/dashboard">Nicabliss</Link>
               <span className="breadcrumb-divider">/</span>
-              <span className="breadcrumb-current" key={pantallaActual}>
-                <span>{currentItem.icon}</span>
-                <span>{currentItem.label}</span>
+              <span className="breadcrumb-current">
+                <span>{currentItem?.icon}</span>
+                <span>{currentItem?.label || "Módulo"}</span>
               </span>
             </nav>
           </div>
 
-          {/* Header Right Actions */}
           <div className="header-actions">
-            <div className="system-status-indicator" title="El sistema funciona localmente sin errores">
+            <div className="system-status-indicator" title="Sesión conectada">
               <span className="pulse-dot" />
               <span>Sistema en línea</span>
             </div>
-
-            {/* Notifications Popover Trigger */}
-            <div style={{ position: "relative" }} ref={notifRef}>
+            <div style={{ position: "relative" }} ref={notificationRef}>
               <button
                 type="button"
                 className={`header-icon-btn ${showNotifications ? "is-active" : ""}`}
-                onClick={() => setShowNotifications(!showNotifications)}
-                aria-label="Ver notificaciones del hotel"
-                title="Notificaciones"
+                onClick={() => setShowNotifications((current) => !current)}
+                aria-label="Ver notificaciones"
               >
                 <span style={{ fontSize: "11px", fontWeight: 700 }}>AVISOS</span>
                 {unreadCount > 0 && <span className="icon-unread-dot" />}
               </button>
-
               {showNotifications && (
                 <div className="dropdown-menu-popover">
                   <div className="popover-header">
                     <strong>Notificaciones activas</strong>
-                    {unreadCount > 0 ? (
+                    {unreadCount > 0 && (
                       <button
                         type="button"
-                        onClick={markAllAsRead}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "var(--hotel-green-700)",
-                          fontSize: "11px",
-                          cursor: "pointer",
-                          fontWeight: 600,
-                        }}
+                        onClick={() => setNotifications((items) => items.map((item) => ({ ...item, read: true })))}
                       >
                         Marcar leídas
                       </button>
-                    ) : (
-                      <span className="popover-badge">Al día</span>
                     )}
                   </div>
-
                   <div className="notifications-list">
-                    {notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        className="notification-item"
-                        onClick={() => {
-                          setNotifications((prev) =>
-                            prev.map((item) =>
-                              item.id === n.id ? { ...item, read: true } : item
-                            )
-                          );
-                        }}
-                      >
-                        <div className="notification-icon">{n.icon}</div>
+                    {notifications.length === 0 ? (
+                      <p style={{ padding: "1rem", color: "#64748b" }}>No hay avisos pendientes.</p>
+                    ) : notifications.map((notification) => (
+                      <div className="notification-item" key={notification.id}>
+                        <div className="notification-icon">{notification.icon}</div>
                         <div className="notification-body">
-                          <div className="notification-title">{n.title}</div>
-                          <div className="notification-desc">{n.desc}</div>
-                          <div className="notification-time">{n.time}</div>
+                          <div className="notification-title">{notification.title}</div>
+                          <div className="notification-desc">{notification.description}</div>
+                          <div className="notification-time">{notification.time}</div>
                         </div>
                       </div>
                     ))}
@@ -423,23 +267,11 @@ export default function AppLayout({
                 </div>
               )}
             </div>
-
-            {/* Quick Avatar in Header */}
-            <button
-              type="button"
-              className="user-avatar-badge"
-              style={{ cursor: "pointer", border: "none" }}
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              title="Opciones de cuenta"
-            >
-              {getInitials(user?.fullName || user?.username)}
-            </button>
           </div>
         </header>
 
-        {/* Dynamic Content Viewport */}
-        <main className="app-content-viewport" key={pantallaActual}>
-          {children}
+        <main className="app-content-viewport">
+          <Outlet />
         </main>
       </div>
     </div>
