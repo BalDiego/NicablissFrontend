@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { userService } from "./services/user.service";
 import { authService } from "./services/auth.service";
 import type { User } from "./services/types";
+import { useFeedback } from "./hooks/useFeedback";
 import "./UsuariosRoles.css";
 
 export default function UsuariosRoles() {
+  const { confirm } = useFeedback();
   const [usuarios, setUsuarios] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,8 +130,15 @@ export default function UsuariosRoles() {
   // Manejo de Edición
   const handleEditar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!modalEditar) return;
+    if (!modalEditar || submitting) return;
     setFormError(null);
+
+    if (
+      formEditar.role !== modalEditar.role &&
+      !(await confirm(`¿Cambiar el rol de ${modalEditar.fullName} de ${modalEditar.role} a ${formEditar.role}?`))
+    ) {
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -633,7 +642,11 @@ export default function UsuariosRoles() {
                       id="edit-role"
                       className="form-select"
                       value={formEditar.role}
-                      disabled={modalEditar.id === "usr_admin_001" || modalEditar.username === "admin"}
+                      disabled={
+                        modalEditar.id === "usr_admin_001" ||
+                        modalEditar.username === "admin" ||
+                        currentUser?.id === modalEditar.id
+                      }
                       onChange={(e) => setFormEditar({ ...formEditar, role: e.target.value as User["role"] })}
                     >
                       <option value="RECEPTIONIST">🛎️ RECEPTIONIST</option>

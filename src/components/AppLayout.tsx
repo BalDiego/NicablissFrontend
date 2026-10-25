@@ -16,14 +16,18 @@ const allRoles = ["ADMIN", "RECEPTIONIST", "STAFF"] as const;
 const managementRoles = ["ADMIN", "RECEPTIONIST"] as const;
 
 const navItems: NavItem[] = [
-  { path: "/dashboard", label: "Dashboard", icon: "01", roles: allRoles },
-  { path: "/customers", label: "Clientes", icon: "02", roles: managementRoles },
+  { path: "/dashboard", label: "Dashboard", icon: "01", roles: managementRoles },
+  { path: "/attendance", label: "Mi asistencia", icon: "02", roles: allRoles },
+  { path: "/customers", label: "Clientes", icon: "03", roles: managementRoles },
   { path: "/reservations", label: "Reservas", icon: "03", roles: managementRoles },
-  { path: "/billing", label: "Cuentas y cobros", icon: "04", roles: managementRoles },
-  { path: "/food-orders", label: "Pedidos de alimentos", icon: "05", roles: allRoles },
-  { path: "/laundry", label: "Lavandería", icon: "06", roles: allRoles },
-  { path: "/cash", label: "Caja y cierres", icon: "07", roles: managementRoles },
-  { path: "/users", label: "Usuarios y roles", icon: "08", roles: ["ADMIN"] },
+  { path: "/stays", label: "Estancias", icon: "04", roles: allRoles },
+  { path: "/invoices", label: "Facturas y cobros", icon: "05", roles: managementRoles },
+  { path: "/food-orders", label: "Pedidos de alimentos", icon: "06", roles: allRoles },
+  { path: "/laundry", label: "Lavandería", icon: "07", roles: allRoles },
+  { path: "/cash", label: "Caja y cierres", icon: "08", roles: managementRoles },
+  { path: "/reports", label: "Reportes", icon: "09", roles: managementRoles },
+  { path: "/service-catalog", label: "Catálogo de servicios", icon: "10", roles: ["ADMIN"] },
+  { path: "/users", label: "Usuarios y roles", icon: "11", roles: ["ADMIN"] },
 ];
 
 type Notification = {

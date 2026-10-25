@@ -9,8 +9,7 @@ export const laundryService = {
   },
 
   async create(order: {
-    huesped: string;
-    habitacion: string;
+    stayId: number;
     prendas: DetallePrenda[];
     observaciones?: string;
   }): Promise<LaundryOrder> {

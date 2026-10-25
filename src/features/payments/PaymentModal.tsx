@@ -17,6 +17,7 @@ export default function PaymentModal({ reservation, onClose, onSaved }: {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (submitting) return;
     setSubmitting(true);
     try {
       await reservationService.createPayment(reservation.id, {
@@ -32,7 +33,7 @@ export default function PaymentModal({ reservation, onClose, onSaved }: {
   return (
     <div className="feature-overlay">
       <div className="feature-modal" role="dialog" aria-modal="true">
-        <header><h2>Registrar pago</h2><button onClick={onClose} aria-label="Cerrar">×</button></header>
+        <header><h2>Registrar pago</h2><button onClick={onClose} aria-label="Cerrar" disabled={submitting}>×</button></header>
         <form className="feature-form" onSubmit={submit}>
           <div className="feature-summary"><span>Reserva {reservation.codigoReserva}</span><strong>Saldo: ${reservation.saldo.toFixed(2)}</strong></div>
           <label>Monto (USD) *<input type="number" min="0.01" max={reservation.saldo} step="0.01" required value={amount} onChange={(event) => setAmount(event.target.value)} /></label>

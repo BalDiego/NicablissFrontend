@@ -11,6 +11,7 @@ describe("permissions", () => {
   it("permite al personal operativo acceder a servicios, no a caja", () => {
     expect(hasPermission("STAFF", "services:manage")).toBe(true);
     expect(hasPermission("STAFF", "cash:manage")).toBe(false);
+    expect(hasPermission("STAFF", "dashboard:view")).toBe(false);
     expect(hasAnyRole("STAFF", ["ADMIN", "RECEPTIONIST"])).toBe(false);
   });
 });

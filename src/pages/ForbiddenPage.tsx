@@ -6,7 +6,7 @@ export default function ForbiddenPage() {
       <strong>403</strong>
       <h1>Acceso no autorizado</h1>
       <p>Tu rol no tiene permisos para consultar este módulo.</p>
-      <Link to="/dashboard">Volver al dashboard</Link>
+      <Link to="/">Volver al inicio autorizado</Link>
     </main>
   );
 }

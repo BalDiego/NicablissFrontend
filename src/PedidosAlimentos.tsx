@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { foodOrderService } from "./services/foodOrder.service";
-import type { FoodOrder } from "./services/types";
+import { stayService } from "./services/stay.service";
+import { useFeedback } from "./hooks/useFeedback";
+import type { FoodOrder, Stay } from "./services/types";
 import "./PedidosAlimentos.css";
 
 type EstadoPedido =
@@ -19,7 +21,9 @@ const estados: EstadoPedido[] = [
 ];
 
 function PedidosAlimentos() {
+  const { notify } = useFeedback();
   const [pedidos, setPedidos] = useState<FoodOrder[]>([]);
+  const [estancias, setEstancias] = useState<Stay[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,8 +31,7 @@ function PedidosAlimentos() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
   const [nuevo, setNuevo] = useState({
-    huesped: "",
-    habitacion: "",
+    stayId: "",
     productos: "",
     total: "",
   });
@@ -53,6 +56,14 @@ function PedidosAlimentos() {
     }
   }, []);
 
+  const cargarEstancias = useCallback(async () => {
+    try {
+      setEstancias(await stayService.getAll("Activa"));
+    } catch (err: unknown) {
+      notify(err instanceof Error ? err.message : "No se pudieron cargar las estancias activas", "error");
+    }
+  }, [notify]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       cargarPedidos(busqueda);
@@ -60,35 +71,48 @@ function PedidosAlimentos() {
     return () => clearTimeout(timer);
   }, [busqueda, cargarPedidos]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => void cargarEstancias(), 0);
+    return () => window.clearTimeout(timer);
+  }, [cargarEstancias]);
+
+  const abrirFormulario = () => {
+    void cargarEstancias();
+    setMostrarFormulario(true);
+  };
+
   const registrarPedido = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const total = Number(nuevo.total);
     if (!Number.isFinite(total) || total <= 0) {
-      alert("Ingresa un importe válido.");
+      notify("Ingresa un importe válido.", "error");
+      return;
+    }
+    if (!nuevo.stayId) {
+      notify("Selecciona una estancia activa.", "error");
       return;
     }
 
     try {
       setSubmitting(true);
       await foodOrderService.create({
-        huesped: nuevo.huesped.trim(),
-        habitacion: nuevo.habitacion,
+        stayId: Number(nuevo.stayId),
         productos: nuevo.productos.trim(),
         total,
       });
 
       setNuevo({
-        huesped: "",
-        habitacion: "",
+        stayId: "",
         productos: "",
         total: "",
       });
       setMostrarFormulario(false);
       await cargarPedidos(busqueda);
+      notify("Pedido registrado y agregado a la estancia");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al registrar el pedido.";
-      alert(msg);
+      notify(msg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -98,9 +122,10 @@ function PedidosAlimentos() {
     try {
       await foodOrderService.updateStatus(id, estado);
       await cargarPedidos(busqueda);
+      notify("Estado del pedido actualizado");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al actualizar el estado del pedido.";
-      alert(msg);
+      notify(msg, "error");
     }
   };
 
@@ -141,7 +166,7 @@ function PedidosAlimentos() {
         <button
           type="button"
           className="pedidos-primary"
-          onClick={() => setMostrarFormulario(true)}
+          onClick={abrirFormulario}
         >
           + Nuevo pedido
         </button>
@@ -303,34 +328,22 @@ function PedidosAlimentos() {
             </div>
 
             <form onSubmit={registrarPedido}>
-              <label>Nombre del huésped</label>
-              <input
-                required
-                value={nuevo.huesped}
-                onChange={(e) =>
-                  setNuevo({ ...nuevo, huesped: e.target.value })
-                }
-                placeholder="Nombre del huésped"
-              />
-
-              <label>Habitación</label>
+              <label>Estancia activa</label>
               <select
                 required
-                value={nuevo.habitacion}
+                value={nuevo.stayId}
                 onChange={(e) =>
-                  setNuevo({ ...nuevo, habitacion: e.target.value })
+                  setNuevo({ ...nuevo, stayId: e.target.value })
                 }
               >
-                <option value="">Seleccionar habitación</option>
-                {Array.from({ length: 14 }, (_, i) => (
-                  <option
-                    key={i}
-                    value={`Habitación ${String(i + 1).padStart(2, "0")}`}
-                  >
-                    Habitación {String(i + 1).padStart(2, "0")}
+                <option value="">Seleccionar huésped y habitación</option>
+                {estancias.map((estancia) => (
+                  <option key={estancia.id} value={estancia.id}>
+                    {estancia.customerName} · {estancia.habitacion} · {estancia.reservationCode}
                   </option>
                 ))}
               </select>
+              {estancias.length === 0 && <small>No hay estancias activas. Registra un check-in antes de crear el pedido.</small>}
 
               <label>Productos solicitados</label>
               <textarea

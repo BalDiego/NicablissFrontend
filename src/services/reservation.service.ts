@@ -5,6 +5,7 @@ import type {
   Reservation,
   ReservationStatus,
   Room,
+  Stay,
 } from "./types";
 
 export interface ReservationPayload {
@@ -40,6 +41,11 @@ export const reservationService = {
 
   async updateStatus(id: number, estado: ReservationStatus): Promise<Reservation> {
     const response = await apiClient.patch<ApiSuccess<Reservation>>(`/reservations/${id}/status`, { estado });
+    return response.data;
+  },
+
+  async checkIn(id: number): Promise<Stay> {
+    const response = await apiClient.post<ApiSuccess<Stay>>(`/reservations/${id}/check-in`);
     return response.data;
   },
 

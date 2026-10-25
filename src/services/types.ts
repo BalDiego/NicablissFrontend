@@ -70,6 +70,7 @@ export interface Payment {
   paymentNumber: string;
   customerId: number;
   reservationId?: number;
+  invoiceId?: number;
   amount: number;
   paymentMethod: MetodoPago;
   reference?: string;
@@ -143,6 +144,9 @@ export interface FoodOrder {
   total: number;
   estado: "Pendiente" | "En preparación" | "En camino" | "Entregado" | "Cancelado";
   fecha: string;
+  customerId?: number;
+  stayId?: number;
+  serviceConsumptionId?: number;
 }
 
 export interface DetallePrenda {
@@ -160,6 +164,120 @@ export interface LaundryOrder {
   estado: "Pendiente" | "En proceso" | "Listo" | "Entregado" | "Cancelado";
   fecha: string;
   observaciones: string;
+  customerId?: number;
+  stayId?: number;
+  serviceConsumptionId?: number;
+}
+
+export type StayStatus = "Activa" | "Finalizada" | "Cancelada";
+
+export interface Stay {
+  id: number;
+  reservationId: number;
+  reservationCode: string;
+  customerId: number;
+  customerName: string;
+  customerDocument: string;
+  roomId: number;
+  habitacion: string;
+  checkInAt: string;
+  checkOutAt?: string;
+  estado: StayStatus;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ServiceCategory =
+  | "Alimentos"
+  | "Lavandería"
+  | "Hospedaje"
+  | "Minibar"
+  | "Transporte"
+  | "Otro";
+
+export type ConsumptionStatus =
+  | "Registrado"
+  | "EnProceso"
+  | "Entregado"
+  | "Consumido"
+  | "Cancelado";
+
+export interface ServiceCatalog {
+  id: number;
+  nombre: string;
+  categoria: ServiceCategory;
+  descripcion?: string;
+  precio: number;
+  impuesto: number;
+  activo: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceConsumption {
+  id: number;
+  stayId: number;
+  customerId: number;
+  serviceId: number;
+  serviceName: string;
+  categoria: ServiceCategory;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+  estado: ConsumptionStatus;
+  observaciones?: string;
+  sourceType: "DIRECT" | "FOOD_ORDER" | "LAUNDRY_ORDER";
+  sourceId?: number;
+  consumedAt: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type InvoiceStatus = "Borrador" | "Emitida" | "Parcial" | "Pagada" | "Anulada";
+
+export interface InvoiceItem {
+  id: number;
+  invoiceId: number;
+  serviceType: "LODGING" | "SERVICE";
+  sourceId: number;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  tax: number;
+  total: number;
+  createdAt: string;
+}
+
+export interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  customerId: number;
+  customerName: string;
+  customerDocument: string;
+  reservationId: number;
+  reservationCode: string;
+  stayId: number;
+  room: string;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  paidAmount: number;
+  balance: number;
+  status: InvoiceStatus;
+  issuedAt?: string;
+  issuedBy?: string;
+  issuedByName?: string;
+  voidedAt?: string;
+  voidedBy?: string;
+  voidReason?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  items: InvoiceItem[];
 }
 
 export type TipoMovimiento = "Ingreso" | "Salida";
@@ -180,6 +298,12 @@ export interface CashMovement {
   descripcion: string;
   metodo: MetodoPago;
   monto: number;
+  paymentId?: number;
+  customerId?: number;
+  reservationId?: number;
+  invoiceId?: number;
+  createdBy?: string;
+  source?: "MANUAL" | "PAYMENT" | "REVERSAL" | "MIGRATION";
 }
 
 export interface CashSession {
@@ -197,6 +321,114 @@ export interface CashSession {
   observaciones: string;
   isClosed: boolean;
   movimientos: CashMovement[];
+}
+
+export type ReconciliationIssue =
+  | "MISSING_MOVEMENT"
+  | "MOVEMENT_WRONG_SESSION"
+  | "AMOUNT_MISMATCH"
+  | "DIRECTION_MISMATCH"
+  | "METHOD_MISMATCH"
+  | "USER_MISMATCH";
+
+export interface CashReconciliationItem {
+  paymentId: number;
+  paymentNumber: string;
+  kind: "PAYMENT" | "REVERSAL";
+  status: "POSTED" | "REVERSED";
+  method: MetodoPago;
+  paymentDate: string;
+  userId: string;
+  userName: string;
+  expectedAmount: number;
+  movementId?: number;
+  movementAmount: number;
+  difference: number;
+  issues: ReconciliationIssue[];
+}
+
+export interface CashReconciliation {
+  session: {
+    id: number;
+    responsable: string;
+    apertura: string;
+    cierre?: string;
+    isClosed: boolean;
+    fondoInicial: number;
+  };
+  filters: { method?: MetodoPago; userId?: string };
+  totals: CashReconciliationTotals;
+  sessionIntegrity: {
+    storedCashIncome: number;
+    computedCashIncome: number;
+    cashIncomeDifference: number;
+    storedDigitalIncome: number;
+    computedDigitalIncome: number;
+    digitalIncomeDifference: number;
+    storedCashOutput: number;
+    computedCashOutput: number;
+    cashOutputDifference: number;
+    storedExpectedCash: number;
+    computedExpectedCash: number;
+    expectedCashDifference: number;
+    balanced: boolean;
+  };
+  mismatchCount: number;
+  missingMovementCount: number;
+  orphanMovementCount: number;
+  balanced: boolean;
+  items: CashReconciliationItem[];
+  orphanMovements: Array<{
+    movementId: number;
+    paymentId?: number;
+    paymentNumber?: string;
+    method: MetodoPago;
+    userId?: string;
+    userName?: string;
+    amount: number;
+    source: "PAYMENT" | "REVERSAL";
+  }>;
+}
+
+export interface CashReconciliationTotals {
+  paymentCount: number;
+  payments: number;
+  reversals: number;
+  netPayments: number;
+  automaticMovementCount: number;
+  movementIncome: number;
+  movementReversals: number;
+  netMovements: number;
+  difference: number;
+  manualIncome: number;
+  manualOutput: number;
+}
+
+export interface CashByMethodRow extends CashReconciliationTotals {
+  method: MetodoPago;
+  mismatchCount: number;
+  orphanMovementCount: number;
+  balanced: boolean;
+}
+
+export interface CashByUserRow extends CashReconciliationTotals {
+  userId: string;
+  userName: string;
+  mismatchCount: number;
+  orphanMovementCount: number;
+  balanced: boolean;
+}
+
+export interface CashByMethodReport {
+  sessionId: number;
+  userId?: string;
+  rows: CashByMethodRow[];
+}
+
+export interface CashByUserReport {
+  sessionId: number;
+  method?: MetodoPago;
+  rows: CashByUserRow[];
 }
 
 export interface DashboardStat {
@@ -219,6 +451,79 @@ export interface DashboardMetrics {
     status: string;
   }[];
 }
+
+export interface DailyDashboardReport {
+  date: string;
+  filters: { method?: MetodoPago; category?: string };
+  income: { collected: number; invoiced: number; pending: number; advances: number };
+  byMethod: Array<{ method: MetodoPago; amount: number; operationCount: number }>;
+  byCategory: Array<{ category: string; amount: number }>;
+  activeCustomers: number;
+  reservations: { created: number; arrivals: number; departures: number };
+  receivables: { count: number; amount: number };
+  cash: { open: boolean; sessionId?: number; responsible?: string; openedAt?: string };
+  recentPayments: Array<{
+    paymentNumber: string;
+    customerName: string;
+    reservationCode?: string;
+    method: MetodoPago;
+    kind: "PAYMENT" | "REVERSAL";
+    amount: number;
+    paymentDate: string;
+  }>;
+  updatedAt: string;
+}
+
+export interface ServicesReport {
+  from: string;
+  to: string;
+  category?: string;
+  totals: { consumptionCount: number; quantity: number; revenue: number };
+  items: Array<{
+    category: string;
+    serviceName: string;
+    consumptionCount: number;
+    quantity: number;
+    revenue: number;
+  }>;
+}
+
+export interface MonthlyRevenueReportData {
+  year: number;
+  totals: { invoiced: number; collected: number; pending: number };
+  months: Array<{ month: number; invoiced: number; collected: number; pending: number }>;
+}
+
+export interface ReceivablesReportData {
+  totals: { count: number; balance: number };
+  items: Array<{
+    invoiceId: number;
+    invoiceNumber: string;
+    customerId: number;
+    customerName: string;
+    customerDocument: string;
+    reservationCode: string;
+    room: string;
+    total: number;
+    paid: number;
+    balance: number;
+    status: string;
+    issuedAt: string;
+    ageDays: number;
+  }>;
+}
+
+export interface RevenueCategoriesReport {
+  from: string;
+  to: string;
+  total: number;
+  items: Array<{ category: string; lineCount: number; invoiced: number }>;
+}
+
+export type AttendanceStatus = "Presente" | "Tarde" | "Ausente" | "Permiso" | "Incapacidad";
+export interface AttendanceRecord { id: number; userId: string; userName: string; attendanceDate: string; checkIn?: string; checkOut?: string; status: AttendanceStatus; justification?: string; registeredBy: string; createdAt: string; updatedAt: string; }
+export interface StaffSchedule { id: number; userId: string; userName: string; dayOfWeek: number; startTime: string; endTime: string; active: boolean; }
+export interface AttendanceReportData { totals: { records: number; late: number; absences: number }; users: Array<{ userId: string; userName: string; presente: number; tarde: number; ausente: number; permiso: number; incapacidad: number; total: number }>; records: AttendanceRecord[]; }
 
 export interface CreateUserPayload {
   username: string;

@@ -47,7 +47,7 @@ export default function PaymentHistory({ payments, onChanged }: { payments: Paym
 
   const voidPayment = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!voidTarget) return;
+    if (!voidTarget || submitting) return;
     setSubmitting(true);
     try {
       await reservationService.voidPayment(voidTarget.id, reason);
@@ -60,7 +60,7 @@ export default function PaymentHistory({ payments, onChanged }: { payments: Paym
   return (
     <>
       <div className="feature-panel"><table className="feature-table"><thead><tr><th>Comprobante</th><th>Fecha</th><th>Método</th><th>Monto</th><th>Estado</th><th /></tr></thead><tbody>{payments.map((payment) => <tr key={payment.id}><td><strong>{payment.paymentNumber}</strong>{payment.reversesPaymentId && <small>Revierte pago #{payment.reversesPaymentId}</small>}</td><td>{new Date(payment.paymentDate).toLocaleString("es-NI")}</td><td>{payment.paymentMethod}<small>{payment.reference || ""}</small></td><td className={payment.kind === "REVERSAL" ? "negative" : "positive"}>{payment.kind === "REVERSAL" ? "−" : "+"}${payment.amount.toFixed(2)}</td><td>{payment.status === "REVERSED" ? "Revertido" : "Registrado"}</td><td><button className="feature-link" onClick={() => void showReceipt(payment.id)}>Comprobante</button>{user?.role === "ADMIN" && payment.kind === "PAYMENT" && payment.status === "POSTED" && <button className="feature-danger-link" onClick={() => setVoidTarget(payment)}>Anular</button>}</td></tr>)}</tbody></table>{payments.length === 0 && <p className="feature-state">Aún no hay pagos registrados.</p>}</div>
-      {voidTarget && <div className="feature-overlay"><div className="feature-modal"><header><h2>Anular pago</h2><button onClick={() => setVoidTarget(null)}>×</button></header><form className="feature-form" onSubmit={voidPayment}><p>Se creará una reversión de <strong>${voidTarget.amount.toFixed(2)}</strong>. El registro original se conservará.</p><label>Motivo *<textarea required minLength={3} value={reason} onChange={(event) => setReason(event.target.value)} /></label><footer><button type="button" onClick={() => setVoidTarget(null)}>Cancelar</button><button className="feature-danger" disabled={submitting}>{submitting ? "Anulando..." : "Confirmar reversión"}</button></footer></form></div></div>}
+      {voidTarget && <div className="feature-overlay"><div className="feature-modal"><header><h2>Anular pago</h2><button onClick={() => setVoidTarget(null)} disabled={submitting}>×</button></header><form className="feature-form" onSubmit={voidPayment}><p>Se creará una reversión de <strong>${voidTarget.amount.toFixed(2)}</strong>. El registro original se conservará.</p><label>Motivo *<textarea required minLength={3} value={reason} onChange={(event) => setReason(event.target.value)} /></label><footer><button type="button" onClick={() => setVoidTarget(null)} disabled={submitting}>Cancelar</button><button className="feature-danger" disabled={submitting}>{submitting ? "Anulando..." : "Confirmar reversión"}</button></footer></form></div></div>}
     </>
   );
 }

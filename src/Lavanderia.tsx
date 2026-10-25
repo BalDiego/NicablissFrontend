@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { laundryService } from "./services/laundry.service";
-import type { LaundryOrder, DetallePrenda } from "./services/types";
+import { stayService } from "./services/stay.service";
+import { useFeedback } from "./hooks/useFeedback";
+import type { LaundryOrder, DetallePrenda, Stay } from "./services/types";
 import "./Lavanderia.css";
 
 const PRECIO_POR_PRENDA = 0.5;
@@ -42,7 +44,9 @@ const crearDetalleVacio = (): DetallePrenda[] => [
 ];
 
 function Lavanderia() {
+  const { notify } = useFeedback();
   const [solicitudes, setSolicitudes] = useState<LaundryOrder[]>([]);
+  const [estancias, setEstancias] = useState<Stay[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
   const [loading, setLoading] = useState(true);
@@ -51,8 +55,7 @@ function Lavanderia() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
   const [nuevo, setNuevo] = useState({
-    huesped: "",
-    habitacion: "",
+    stayId: "",
     observaciones: "",
   });
 
@@ -86,12 +89,30 @@ function Lavanderia() {
     }
   }, []);
 
+  const cargarEstancias = useCallback(async () => {
+    try {
+      setEstancias(await stayService.getAll("Activa"));
+    } catch (err: unknown) {
+      notify(err instanceof Error ? err.message : "No se pudieron cargar las estancias activas", "error");
+    }
+  }, [notify]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       cargarSolicitudes(busqueda);
     }, 250);
     return () => clearTimeout(timer);
   }, [busqueda, cargarSolicitudes]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void cargarEstancias(), 0);
+    return () => window.clearTimeout(timer);
+  }, [cargarEstancias]);
+
+  const abrirFormulario = () => {
+    void cargarEstancias();
+    setMostrarFormulario(true);
+  };
 
   const pendientes = solicitudes.filter(
     (s) => s.estado === "Pendiente"
@@ -161,8 +182,7 @@ function Lavanderia() {
   const cerrarFormulario = () => {
     setMostrarFormulario(false);
     setNuevo({
-      huesped: "",
-      habitacion: "",
+      stayId: "",
       observaciones: "",
     });
     setPrendasNuevas(crearDetalleVacio());
@@ -173,8 +193,8 @@ function Lavanderia() {
   ) => {
     e.preventDefault();
 
-    if (!nuevo.huesped.trim() || !nuevo.habitacion) {
-      alert("Completa los datos del huésped.");
+    if (!nuevo.stayId) {
+      notify("Selecciona una estancia activa.", "error");
       return;
     }
 
@@ -184,7 +204,7 @@ function Lavanderia() {
         (p) => !Number.isInteger(p.cantidad) || p.cantidad < 1
       )
     ) {
-      alert("Agrega prendas con cantidades válidas.");
+      notify("Agrega prendas con cantidades válidas.", "error");
       return;
     }
 
@@ -208,17 +228,17 @@ function Lavanderia() {
     try {
       setSubmitting(true);
       await laundryService.create({
-        huesped: nuevo.huesped.trim(),
-        habitacion: nuevo.habitacion,
+        stayId: Number(nuevo.stayId),
         prendas: agrupadas,
         observaciones: nuevo.observaciones.trim(),
       });
 
       cerrarFormulario();
       await cargarSolicitudes(busqueda);
+      notify("Solicitud registrada y agregada a la estancia");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al registrar la solicitud.";
-      alert(msg);
+      notify(msg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -231,9 +251,10 @@ function Lavanderia() {
     try {
       await laundryService.updateStatus(id, estado);
       await cargarSolicitudes(busqueda);
+      notify("Estado de lavandería actualizado");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al cambiar el estado del servicio.";
-      alert(msg);
+      notify(msg, "error");
     }
   };
 
@@ -255,7 +276,7 @@ function Lavanderia() {
         <button
           type="button"
           className="lavanderia-primary"
-          onClick={() => setMostrarFormulario(true)}
+          onClick={abrirFormulario}
         >
           + Nueva solicitud
         </button>
@@ -475,54 +496,31 @@ function Lavanderia() {
             </div>
 
             <form onSubmit={registrarSolicitud}>
-              <label htmlFor="lav-huesped">
-                Nombre del huésped
-              </label>
-
-              <input
-                id="lav-huesped"
-                required
-                value={nuevo.huesped}
-                onChange={(e) =>
-                  setNuevo({
-                    ...nuevo,
-                    huesped: e.target.value,
-                  })
-                }
-                placeholder="Nombre completo"
-              />
-
-              <label htmlFor="lav-habitacion">
-                Habitación
+              <label htmlFor="lav-estancia">
+                Estancia activa
               </label>
 
               <select
-                id="lav-habitacion"
+                id="lav-estancia"
                 required
-                value={nuevo.habitacion}
+                value={nuevo.stayId}
                 onChange={(e) =>
                   setNuevo({
                     ...nuevo,
-                    habitacion: e.target.value,
+                    stayId: e.target.value,
                   })
                 }
               >
                 <option value="">
-                  Seleccionar habitación
+                  Seleccionar huésped y habitación
                 </option>
-
-                {Array.from({ length: 14 }, (_, i) => (
-                  <option
-                    key={i}
-                    value={`Habitación ${String(
-                      i + 1
-                    ).padStart(2, "0")}`}
-                  >
-                    Habitación{" "}
-                    {String(i + 1).padStart(2, "0")}
+                {estancias.map((estancia) => (
+                  <option key={estancia.id} value={estancia.id}>
+                    {estancia.customerName} · {estancia.habitacion} · {estancia.reservationCode}
                   </option>
                 ))}
               </select>
+              {estancias.length === 0 && <small>No hay estancias activas. Registra un check-in antes de crear la solicitud.</small>}
 
               <div className="lavanderia-prendas-header">
                 <h3>Prendas recibidas</h3>

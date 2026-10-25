@@ -40,5 +40,7 @@
 .feature-badge { padding: 5px 9px; border-radius: 999px; background: #eef2f0; font-size: 11px; font-weight: 800; }
 .positive { color: #15803d; font-weight: 800; }.negative { color: #b91c1c; font-weight: 800; }
 .feature-danger { padding: 10px 15px; border: 0; border-radius: 8px; background: #b42318; color: #fff; font-weight: 700; }
+.feature-checkbox { display: flex !important; grid-template-columns: auto 1fr; align-items: center; justify-content: flex-start; }
+.feature-checkbox input { width: auto; }
 @media (max-width: 900px) { .feature-detail-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .feature-heading, .feature-toolbar, .feature-actions { flex-direction: column; } .feature-heading .feature-primary, .feature-actions button { width: 100%; } .feature-detail-grid, .feature-form.two-columns { grid-template-columns: 1fr; } }

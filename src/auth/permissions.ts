@@ -24,7 +24,7 @@ const rolePermissions: Record<UserRole, readonly Permission[]> = {
     "services:manage",
     "cash:manage",
   ],
-  STAFF: ["dashboard:view", "services:manage"],
+  STAFF: ["services:manage"],
 };
 
 export function hasPermission(role: UserRole, permission: Permission): boolean {

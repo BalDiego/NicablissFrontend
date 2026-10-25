@@ -370,6 +370,164 @@
   color: #475569;
 }
 
+.caja-reconciliation {
+  display: grid;
+  gap: 20px;
+}
+
+.caja-reconciliation-status,
+.caja-match,
+.caja-mismatch {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.caja-reconciliation-status.is-balanced,
+.caja-match {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.caja-reconciliation-status.is-unbalanced,
+.caja-mismatch {
+  background: #fee2e2;
+  color: #b42318;
+}
+
+.caja-report-filters {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.caja-report-filters label {
+  display: grid;
+  gap: 6px;
+  min-width: 210px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.caja-report-filters select {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #1e293b;
+}
+
+.caja-alert {
+  display: grid;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.caja-alert-success {
+  border-color: #86d7a0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.caja-alert-danger {
+  border-color: #f1a7a7;
+  background: #fff1f2;
+  color: #9f1c1c;
+}
+
+.caja-reconciliation-totals,
+.caja-method-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.caja-reconciliation-totals article,
+.caja-method-grid article {
+  display: grid;
+  gap: 7px;
+  padding: 15px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.caja-reconciliation-totals span,
+.caja-method-grid span,
+.caja-reconciliation-totals small,
+.caja-method-grid small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.caja-reconciliation-totals strong,
+.caja-method-grid strong {
+  color: #1e3a5f;
+  font-size: 19px;
+}
+
+.caja-method-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.caja-method-grid article.is-balanced {
+  border-color: #a7d8b6;
+}
+
+.caja-method-grid article.is-unbalanced {
+  border-color: #f1a7a7;
+  background: #fff8f8;
+}
+
+.caja-subtitle,
+.caja-payments-heading h3 {
+  margin: 0;
+  color: #1e293b;
+}
+
+.caja-payments-heading {
+  margin-top: 8px;
+}
+
+.caja-table td small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+}
+
+.caja-balanced-text {
+  color: #166534;
+}
+
+.caja-unbalanced-text {
+  color: #b42318;
+  font-weight: 700;
+}
+
+.caja-manual-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 15px;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 13px;
+}
+
 @media (max-width: 900px) {
   .caja-page {
     padding: 20px;
@@ -377,6 +535,11 @@
 
   .caja-stats {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .caja-reconciliation-totals,
+  .caja-method-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .caja-heading,
@@ -389,6 +552,15 @@
 @media (max-width: 520px) {
   .caja-stats {
     grid-template-columns: 1fr;
+  }
+
+  .caja-reconciliation-totals,
+  .caja-method-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .caja-manual-summary {
+    flex-direction: column;
   }
 
   .caja-session {

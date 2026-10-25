@@ -9,8 +9,7 @@ export const foodOrderService = {
   },
 
   async create(order: {
-    huesped: string;
-    habitacion: string;
+    stayId: number;
     productos: string;
     total: number;
   }): Promise<FoodOrder> {
