@@ -87,6 +87,8 @@ VITE_STRICT_PRODUCTION=true
 
 Los builds de CI/Vercel fallan si la API no es HTTPS, apunta a localhost o no termina en `/api/v1`. `VITE_STRICT_PRODUCTION=true` aplica la misma validación en un build manual. Un build local normal puede servirse con `npm run preview` contra la API local sin debilitar la validación de despliegue. El dominio del frontend debe incluirse a su vez en `CORS_ORIGIN` del backend.
 
+El `vercel.json` de la raíz fija el preset Vite, instalación reproducible con `npm ci`, salida `dist`, fallback SPA, cabeceras de seguridad y caché larga solo para archivos versionados de `/assets`.
+
 ## Pruebas
 
 ### Unitarias y componentes
