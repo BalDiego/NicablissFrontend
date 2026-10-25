@@ -1,14 +1,5 @@
-export type Pantalla =
-  | "dashboard"
-  | "huespedes"
-  | "cobros"
-  | "pedidos"
-  | "lavanderia"
-  | "caja"
-  | "usuarios";
-
 export type NavItem = {
-  id: Pantalla;
+  path: string;
   label: string;
   icon: string;
   badge?: number | string;

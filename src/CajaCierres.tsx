@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { cashService } from "./services/cash.service";
+import { useFeedback } from "./hooks/useFeedback";
 import type {
+  CashByMethodRow,
+  CashByUserRow,
+  CashReconciliation,
   CashSession,
   TipoMovimiento,
   ConceptoMovimiento,
@@ -26,9 +30,24 @@ const conceptosSalida: ConceptoMovimiento[] = [
   "Retiro de efectivo",
 ];
 
+const issueLabels: Record<string, string> = {
+  MISSING_MOVEMENT: "Movimiento faltante",
+  MOVEMENT_WRONG_SESSION: "Turno incorrecto",
+  AMOUNT_MISMATCH: "Monto diferente",
+  DIRECTION_MISMATCH: "Dirección incorrecta",
+  METHOD_MISMATCH: "Método diferente",
+  USER_MISMATCH: "Usuario diferente",
+};
+
 function CajaCierres() {
+  const { notify, confirm } = useFeedback();
   const [sesion, setSesion] = useState<CashSession | null>(null);
   const [historial, setHistorial] = useState<CashSession[]>([]);
+  const [conciliacion, setConciliacion] = useState<CashReconciliation | null>(null);
+  const [porMetodo, setPorMetodo] = useState<CashByMethodRow[]>([]);
+  const [porUsuario, setPorUsuario] = useState<CashByUserRow[]>([]);
+  const [filtroMetodo, setFiltroMetodo] = useState<MetodoPago | "">("");
+  const [filtroUsuario, setFiltroUsuario] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -59,13 +78,31 @@ function CajaCierres() {
       ]);
       setSesion(current);
       setHistorial(history);
+      if (current) {
+        const [reconciliationData, methodData, userData] = await Promise.all([
+          cashService.getReconciliation(
+            current.id,
+            filtroMetodo || undefined,
+            filtroUsuario || undefined
+          ),
+          cashService.getByMethod(current.id, filtroUsuario || undefined),
+          cashService.getByUser(current.id, filtroMetodo || undefined),
+        ]);
+        setConciliacion(reconciliationData);
+        setPorMetodo(methodData.rows);
+        setPorUsuario(userData.rows);
+      } else {
+        setConciliacion(null);
+        setPorMetodo([]);
+        setPorUsuario([]);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al consultar el módulo de caja.";
       setError(msg);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filtroMetodo, filtroUsuario]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -93,12 +130,12 @@ function CajaCierres() {
     const fondo = Number(fondoInicial);
 
     if (!responsable.trim()) {
-      alert("Ingresa el nombre del responsable.");
+      notify("Ingresa el nombre del responsable.", "error");
       return;
     }
 
     if (!Number.isFinite(fondo) || fondo < 0) {
-      alert("El fondo inicial debe ser válido.");
+      notify("El fondo inicial debe ser válido.", "error");
       return;
     }
 
@@ -110,9 +147,10 @@ function CajaCierres() {
       setResponsable("");
       setFondoInicial("0");
       await cargarDatosCaja();
+      notify("Caja abierta correctamente");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al abrir la caja.";
-      alert(msg);
+      notify(msg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -124,12 +162,12 @@ function CajaCierres() {
 
     const valor = Number(monto);
     if (!Number.isFinite(valor) || valor <= 0) {
-      alert("Ingresa un monto mayor que cero.");
+      notify("Ingresa un monto mayor que cero.", "error");
       return;
     }
 
     if (tipo === "Salida" && metodo === "Efectivo" && valor > efectivoEsperado) {
-      alert("La salida supera el efectivo disponible en caja.");
+      notify("La salida supera el efectivo disponible en caja.", "error");
       return;
     }
 
@@ -150,9 +188,10 @@ function CajaCierres() {
       setMetodo("Efectivo");
       setMonto("");
       await cargarDatosCaja();
+      notify("Movimiento manual registrado");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al registrar el movimiento.";
-      alert(msg);
+      notify(msg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -167,9 +206,19 @@ function CajaCierres() {
       !Number.isFinite(contado) ||
       contado < 0
     ) {
-      alert("Ingresa el efectivo contado.");
+      notify("Ingresa el efectivo contado.", "error");
       return;
     }
+
+    if (!conciliacion?.balanced) {
+      notify("No se puede cerrar: existen descuadres en la conciliación automática.", "error");
+      return;
+    }
+
+    const confirmed = await confirm(
+      `¿Confirmas el cierre de caja? Efectivo esperado: ${dinero(efectivoEsperado)}; contado: ${dinero(contado)}; diferencia: ${dinero(diferencia)}.`
+    );
+    if (!confirmed) return;
 
     try {
       setSubmitting(true);
@@ -179,9 +228,10 @@ function CajaCierres() {
       setEfectivoContado("");
       setObservaciones("");
       await cargarDatosCaja();
+      notify("Caja cerrada correctamente");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al cerrar la caja.";
-      alert(msg);
+      notify(msg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -332,6 +382,122 @@ function CajaCierres() {
         </article>
       </section>
 
+      {sesion && conciliacion && (
+        <section className="caja-panel caja-reconciliation">
+          <div className="caja-panel-heading">
+            <div>
+              <h2>Conciliación financiera</h2>
+              <p>Comparación en centavos entre pagos, reversiones y movimientos automáticos del turno.</p>
+            </div>
+            <span className={`caja-reconciliation-status ${conciliacion.balanced ? "is-balanced" : "is-unbalanced"}`}>
+              {conciliacion.balanced ? "Conciliada" : "Con descuadres"}
+            </span>
+          </div>
+
+          <div className="caja-report-filters">
+            <label>
+              Método
+              <select
+                value={filtroMetodo}
+                onChange={(event) => {
+                  setFiltroMetodo(event.target.value as MetodoPago | "");
+                  setFiltroUsuario("");
+                }}
+              >
+                <option value="">Todos los métodos</option>
+                <option value="Efectivo">Efectivo</option>
+                <option value="Tarjeta">Tarjeta</option>
+                <option value="Transferencia">Transferencia</option>
+              </select>
+            </label>
+            <label>
+              Usuario
+              <select value={filtroUsuario} onChange={(event) => setFiltroUsuario(event.target.value)}>
+                <option value="">Todos los usuarios</option>
+                {porUsuario.map((row) => (
+                  <option key={row.userId} value={row.userId}>{row.userName}</option>
+                ))}
+              </select>
+            </label>
+            {(filtroMetodo || filtroUsuario) && (
+              <button
+                type="button"
+                className="caja-secondary"
+                onClick={() => { setFiltroMetodo(""); setFiltroUsuario(""); }}
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+
+          {!conciliacion.balanced && (
+            <div className="caja-alert caja-alert-danger" role="alert">
+              <strong>El cierre está bloqueado.</strong>
+              <span>
+                Diferencia: {dinero(conciliacion.totals.difference)} · {conciliacion.mismatchCount} pagos con incidencia · {conciliacion.orphanMovementCount} movimientos huérfanos.
+              </span>
+            </div>
+          )}
+          {conciliacion.balanced && (
+            <div className="caja-alert caja-alert-success">
+              <strong>Pagos y movimientos automáticos coinciden.</strong>
+              <span>La sesión también conserva consistencia en sus acumulados de efectivo y dinero digital.</span>
+            </div>
+          )}
+
+          <div className="caja-reconciliation-totals">
+            <article><span>Cobros</span><strong>{dinero(conciliacion.totals.payments)}</strong><small>{conciliacion.totals.paymentCount} registros, antes de reversiones</small></article>
+            <article><span>Reversiones</span><strong>-{dinero(conciliacion.totals.reversals)}</strong><small>Movimientos contables inversos</small></article>
+            <article><span>Neto cobrado</span><strong>{dinero(conciliacion.totals.netPayments)}</strong><small>Según pagos</small></article>
+            <article><span>Neto en caja</span><strong>{dinero(conciliacion.totals.netMovements)}</strong><small>Según movimientos automáticos</small></article>
+          </div>
+
+          <h3 className="caja-subtitle">Separación por método</h3>
+          <div className="caja-method-grid">
+            {porMetodo.map((row) => (
+              <article key={row.method} className={row.balanced ? "is-balanced" : "is-unbalanced"}>
+                <span>{row.method}</span>
+                <strong>{dinero(row.netPayments)}</strong>
+                <small>Caja: {dinero(row.netMovements)} · Dif.: {dinero(row.difference)}</small>
+              </article>
+            ))}
+          </div>
+
+          <div className="caja-panel-heading caja-payments-heading">
+            <div><h3>Pagos automáticos</h3><p>Cada cobro debe tener exactamente un movimiento equivalente.</p></div>
+            <span className="caja-counter">{conciliacion.items.length} pagos</span>
+          </div>
+          <div className="caja-table-wrap">
+            <table className="caja-table">
+              <thead><tr><th>Pago</th><th>Usuario</th><th>Método</th><th>Pago neto</th><th>Movimiento</th><th>Diferencia</th><th>Validación</th></tr></thead>
+              <tbody>
+                {conciliacion.items.map((item) => (
+                  <tr key={item.paymentId}>
+                    <td><strong>{item.paymentNumber}</strong><small>{item.kind === "REVERSAL" ? "Reversión" : "Cobro"}</small></td>
+                    <td>{item.userName}</td>
+                    <td>{item.method}</td>
+                    <td>{dinero(item.expectedAmount)}</td>
+                    <td>{item.movementId ? dinero(item.movementAmount) : "Sin movimiento"}</td>
+                    <td className={Math.abs(item.difference) < 0.005 ? "caja-balanced-text" : "caja-unbalanced-text"}>{dinero(item.difference)}</td>
+                    <td>
+                      {item.issues.length === 0
+                        ? <span className="caja-match">Correcto</span>
+                        : <span className="caja-mismatch">{item.issues.map((issue) => issueLabels[issue] || issue).join(", ")}</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {conciliacion.items.length === 0 && <div className="caja-empty"><strong>No hay pagos automáticos</strong><p>Los movimientos manuales no se consideran cobros.</p></div>}
+          </div>
+
+          <div className="caja-manual-summary">
+            <span>Movimientos manuales informativos</span>
+            <strong>Ingresos {dinero(conciliacion.totals.manualIncome)} · Salidas {dinero(conciliacion.totals.manualOutput)}</strong>
+          </div>
+        </section>
+      )}
+
       <section className="caja-panel">
         <div className="caja-panel-heading">
           <div>
@@ -354,6 +520,7 @@ function CajaCierres() {
                 <th>Tipo</th>
                 <th>Concepto</th>
                 <th>Descripción</th>
+                <th>Origen</th>
                 <th>Método</th>
                 <th>Monto</th>
               </tr>
@@ -381,6 +548,8 @@ function CajaCierres() {
                   <td>
                     {movimiento.descripcion || "—"}
                   </td>
+
+                  <td>{movimiento.source === "PAYMENT" ? "Pago automático" : movimiento.source === "REVERSAL" ? "Reversión automática" : "Manual"}</td>
 
                   <td>{movimiento.metodo}</td>
 
@@ -736,6 +905,15 @@ function CajaCierres() {
                 </div>
               </div>
 
+              <div className={`caja-alert ${conciliacion?.balanced ? "caja-alert-success" : "caja-alert-danger"}`}>
+                <strong>{conciliacion?.balanced ? "Conciliación correcta" : "Conciliación pendiente"}</strong>
+                <span>
+                  {conciliacion?.balanced
+                    ? "Los pagos y movimientos automáticos coinciden; el cierre puede continuar."
+                    : "Revisa los descuadres antes de cerrar. El servidor rechazará un cierre no conciliado."}
+                </span>
+              </div>
+
               <label htmlFor="caja-contado">
                 Efectivo contado ($)
               </label>
@@ -795,7 +973,7 @@ function CajaCierres() {
                 <button
                   type="submit"
                   className="caja-primary"
-                  disabled={submitting}
+                  disabled={submitting || !conciliacion?.balanced}
                 >
                   {submitting ? "Cerrando..." : "Confirmar cierre"}
                 </button>

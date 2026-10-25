@@ -3,8 +3,21 @@
  * Maneja automáticamente encabezados JSON, Bearer Token y códigos de error comunes (401, 403, 500).
  */
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:4000/api/v1";
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const API_BASE_URL = (configuredApiUrl || "http://localhost:4000/api/v1").replace(/\/$/, "");
+
+if (typeof __STRICT_PRODUCTION_API__ !== "undefined" && __STRICT_PRODUCTION_API__) {
+  if (!configuredApiUrl) {
+    throw new Error("VITE_API_URL es obligatorio en producción");
+  }
+  const parsed = new URL(API_BASE_URL);
+  if (parsed.protocol !== "https:" || ["localhost", "127.0.0.1"].includes(parsed.hostname)) {
+    throw new Error("VITE_API_URL debe apuntar a una API HTTPS remota en producción");
+  }
+  if (!parsed.pathname.replace(/\/$/, "").endsWith("/api/v1")) {
+    throw new Error("VITE_API_URL debe terminar en /api/v1");
+  }
+}
 
 export class ApiError extends Error {
   code?: string;
@@ -17,6 +30,14 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+
+export interface ApiSuccess<T> {
+  success: true;
+  data: T;
+  message?: string;
+}
+
+type ResponseMode = "auto" | "json" | "text" | "blob";
 
 class ApiClient {
   private baseUrl: string;
@@ -31,18 +52,20 @@ class ApiClient {
 
   public async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    responseMode: ResponseMode = "auto"
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
 
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...(options.headers as Record<string, string>),
-    };
+    const headers = new Headers(options.headers);
+
+    if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
 
     const token = this.getToken();
     if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+      headers.set("Authorization", `Bearer ${token}`);
     }
 
     try {
@@ -51,15 +74,21 @@ class ApiClient {
         headers,
       });
 
-      if (response.status === 401) {
+      if (response.status === 401 && token) {
         localStorage.removeItem("nicabliss_token");
         localStorage.removeItem("nicabliss_user");
         window.dispatchEvent(new CustomEvent("nicabliss:session-expired"));
       }
 
-      let data: unknown;
+      let data: unknown = undefined;
       const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
+      if (response.status === 204) {
+        data = undefined;
+      } else if (responseMode === "blob") {
+        data = await response.blob();
+      } else if (responseMode === "text") {
+        data = await response.text();
+      } else if (responseMode === "json" || (contentType && contentType.includes("application/json"))) {
         data = await response.json();
       } else {
         data = await response.text();
@@ -85,7 +114,7 @@ class ApiClient {
       }
       if (err instanceof TypeError && err.message.includes("fetch")) {
         throw new ApiError(
-          "No se pudo conectar con el servidor de Nicabliss (http://localhost:4000). Verifica que la API esté encendida.",
+          `No se pudo conectar con el servidor de Nicabliss (${API_BASE_URL}). Verifica la configuración y disponibilidad de la API.`,
           "NETWORK_ERROR"
         );
       }
@@ -95,6 +124,14 @@ class ApiClient {
 
   public get<T>(endpoint: string, headers?: Record<string, string>): Promise<T> {
     return this.request<T>(endpoint, { method: "GET", headers });
+  }
+
+  public getBlob(endpoint: string, headers?: Record<string, string>): Promise<Blob> {
+    return this.request<Blob>(endpoint, { method: "GET", headers }, "blob");
+  }
+
+  public getText(endpoint: string, headers?: Record<string, string>): Promise<string> {
+    return this.request<string>(endpoint, { method: "GET", headers }, "text");
   }
 
   public post<T>(

@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { userService } from "./services/user.service";
 import { authService } from "./services/auth.service";
 import type { User } from "./services/types";
+import { useFeedback } from "./hooks/useFeedback";
 import "./UsuariosRoles.css";
 
 export default function UsuariosRoles() {
+  const { confirm } = useFeedback();
   const [usuarios, setUsuarios] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +66,8 @@ export default function UsuariosRoles() {
   }, []);
 
   useEffect(() => {
-    cargarUsuarios();
+    const timer = window.setTimeout(() => void cargarUsuarios(), 0);
+    return () => window.clearTimeout(timer);
   }, [cargarUsuarios]);
 
   // Manejo de Creación
@@ -77,8 +80,8 @@ export default function UsuariosRoles() {
       return;
     }
 
-    if (formNuevo.password.length < 4) {
-      setFormError("La contraseña debe tener al menos 4 caracteres.");
+    if (formNuevo.password.length < 12) {
+      setFormError("La contraseña debe tener al menos 12 caracteres.");
       return;
     }
 
@@ -127,8 +130,15 @@ export default function UsuariosRoles() {
   // Manejo de Edición
   const handleEditar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!modalEditar) return;
+    if (!modalEditar || submitting) return;
     setFormError(null);
+
+    if (
+      formEditar.role !== modalEditar.role &&
+      !(await confirm(`¿Cambiar el rol de ${modalEditar.fullName} de ${modalEditar.role} a ${formEditar.role}?`))
+    ) {
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -139,8 +149,8 @@ export default function UsuariosRoles() {
       };
 
       if (formEditar.password.trim()) {
-        if (formEditar.password.trim().length < 4) {
-          setFormError("La nueva contraseña debe tener al menos 4 caracteres.");
+        if (formEditar.password.trim().length < 12) {
+          setFormError("La nueva contraseña debe tener al menos 12 caracteres.");
           setSubmitting(false);
           return;
         }
@@ -504,7 +514,9 @@ export default function UsuariosRoles() {
                         id="crear-password"
                         type={mostrarPassword ? "text" : "password"}
                         className="form-input"
-                        placeholder="Mínimo 4 caracteres"
+                        placeholder="Mínimo 12 caracteres"
+                        minLength={12}
+                        autoComplete="new-password"
                         value={formNuevo.password}
                         onChange={(e) => setFormNuevo({ ...formNuevo, password: e.target.value })}
                         required
@@ -527,7 +539,7 @@ export default function UsuariosRoles() {
                       id="crear-role"
                       className="form-select"
                       value={formNuevo.role}
-                      onChange={(e) => setFormNuevo({ ...formNuevo, role: e.target.value as any })}
+                      onChange={(e) => setFormNuevo({ ...formNuevo, role: e.target.value as User["role"] })}
                     >
                       <option value="RECEPTIONIST">🛎️ RECEPTIONIST</option>
                       <option value="ADMIN">🛡️ ADMIN</option>
@@ -632,8 +644,12 @@ export default function UsuariosRoles() {
                       id="edit-role"
                       className="form-select"
                       value={formEditar.role}
-                      disabled={modalEditar.id === "usr_admin_001" || modalEditar.username === "admin"}
-                      onChange={(e) => setFormEditar({ ...formEditar, role: e.target.value as any })}
+                      disabled={
+                        modalEditar.id === "usr_admin_001" ||
+                        modalEditar.username === "admin" ||
+                        currentUser?.id === modalEditar.id
+                      }
+                      onChange={(e) => setFormEditar({ ...formEditar, role: e.target.value as User["role"] })}
                     >
                       <option value="RECEPTIONIST">🛎️ RECEPTIONIST</option>
                       <option value="ADMIN">🛡️ ADMIN</option>
@@ -649,6 +665,8 @@ export default function UsuariosRoles() {
                     type="password"
                     className="form-input"
                     placeholder="Dejar en blanco para conservar la actual"
+                    minLength={12}
+                    autoComplete="new-password"
                     value={formEditar.password}
                     onChange={(e) => setFormEditar({ ...formEditar, password: e.target.value })}
                   />

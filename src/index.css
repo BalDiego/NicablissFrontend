@@ -47,6 +47,69 @@ button:focus-visible, a:focus-visible {
   color: #193c31;
 }
 
+.route-loading,
+.status-page {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.status-page strong {
+  color: #477a65;
+  font-size: 64px;
+}
+
+.status-page h1,
+.status-page p {
+  margin: 0;
+}
+
+.status-page a {
+  color: #193c31;
+  font-weight: 700;
+}
+
+.global-toast {
+  position: fixed;
+  z-index: 3000;
+  right: 24px;
+  bottom: 24px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 14px 18px;
+  border-radius: 10px;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.2);
+  color: #fff;
+}
+
+.global-toast-success { background: #166534; }
+.global-toast-error { background: #b91c1c; }
+
+.global-dialog-backdrop {
+  position: fixed;
+  z-index: 3100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.global-dialog {
+  width: min(440px, 100%);
+  padding: 24px;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.global-dialog h2 { margin-top: 0; }
+.global-dialog > div { display: flex; justify-content: flex-end; gap: 10px; }
+.global-dialog button { padding: 10px 16px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.global-dialog-primary { background: #193c31; color: #fff; }
+
 /* =========================================================
    REGLAS RESPONSIVAS GLOBALES PARA TODOS LOS MÓDULOS DEL SISTEMA
    ========================================================= */
