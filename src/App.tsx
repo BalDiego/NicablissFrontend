@@ -23,6 +23,7 @@ import InvoicesPage from "./features/invoices/InvoicesPage";
 import InvoiceDetailPage from "./features/invoices/InvoiceDetailPage";
 import ReportsPage from "./features/reports/ReportsPage";
 import AttendancePage from "./features/attendance/AttendancePage";
+import LegacyAdministrationPage from "./features/legacy/LegacyAdministrationPage";
 import AttendanceReport from "./features/attendance/AttendanceReport";
 import SchedulePage from "./features/attendance/SchedulePage";
 import { useAuth } from "./hooks/useAuth";
@@ -71,6 +72,7 @@ export default function App() {
           <Route element={<RoleGuard allowedRoles={["ADMIN"]} />}>
             <Route path="service-catalog" element={<ServiceCatalogPage />} />
             <Route path="users" element={<UsuariosRoles />} />
+            <Route path="legacy-administration" element={<LegacyAdministrationPage />} />
             <Route path="attendance/report" element={<AttendanceReport />} />
             <Route path="attendance/schedules" element={<SchedulePage />} />
           </Route>

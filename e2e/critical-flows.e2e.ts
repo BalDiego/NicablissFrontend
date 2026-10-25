@@ -171,4 +171,12 @@ test.describe.serial("flujos críticos del PMS", () => {
     await expect(page.getByRole("button", { name: "Registrar salida" })).toBeDisabled();
     await expect(page.getByText("Pendiente", { exact: true })).toHaveCount(0);
   });
+
+  test("Administrador → Consultar conciliación heredada", async () => {
+    await page.goto("/legacy-administration");
+    await expect(page.getByRole("heading", { name: "Conciliación de datos heredados" })).toBeVisible();
+    await expect(page.getByText("Saldo histórico")).toBeVisible();
+    await page.getByRole("button", { name: /Revisiones/ }).click();
+    await expect(page.getByText("No hay revisiones pendientes.")).toBeVisible();
+  });
 });

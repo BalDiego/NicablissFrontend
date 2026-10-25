@@ -13,10 +13,11 @@ copy .env.example .env
 npm run dev
 ```
 
-Si no se define `VITE_API_URL`, se usa `http://localhost:4000/api/v1`.
+En desarrollo, si no se define `VITE_API_URL`, se usa `http://localhost:4000/api/v1`. En producción la variable es obligatoria, debe usar HTTPS y terminar en `/api/v1`.
 
 ```env
 VITE_API_URL=http://localhost:4000/api/v1
+VITE_BUSINESS_TIMEZONE=America/Managua
 ```
 
 ## Scripts
@@ -29,7 +30,7 @@ VITE_API_URL=http://localhost:4000/api/v1
 | `npm test` | Pruebas unitarias y de componentes con Vitest. |
 | `npm run test:watch` | Vitest en modo interactivo. |
 | `npm run test:e2e:install` | Instala Chromium para Playwright. |
-| `npm run test:e2e` | Ejecuta los cinco flujos críticos contra `file:test.db`. |
+| `npm run test:e2e` | Ejecuta los seis flujos críticos contra `file:test.db`. |
 | `npm run preview` | Sirve el bundle generado. |
 
 ## Módulos
@@ -44,6 +45,7 @@ VITE_API_URL=http://localhost:4000/api/v1
 - Reportes diarios, mensuales, servicios y cuentas pendientes.
 - Asistencia, ausencias, horarios y reporte mensual.
 - Usuarios y roles.
+- Cuentas históricas y conciliación auditada de datos heredados (ADMIN).
 - Pantallas 401/403, confirmaciones y mensajes globales.
 
 ## Rutas y permisos
@@ -58,6 +60,7 @@ VITE_API_URL=http://localhost:4000/api/v1
 | `/service-catalog` | Sí | No | No |
 | `/attendance/report`, `/attendance/schedules` | Sí | No | No |
 | `/users` | Sí | No | No |
+| `/legacy-administration` | Sí | No | No |
 
 La navegación oculta módulos no autorizados y `RoleGuard` redirige intentos directos a `/403`. `STAFF` inicia en asistencia; los demás roles, en dashboard.
 
@@ -70,6 +73,19 @@ La navegación oculta módulos no autorizados y `RoleGuard` redirige intentos di
 - Los formularios críticos bloquean reenvíos mientras están procesando.
 - Vistas y botones presentan estados de carga y errores recuperables.
 - Los pagos crean una clave de idempotencia por formulario.
+- Las fechas operativas usan `America/Managua`, no la fecha UTC del navegador.
+
+## Configuración de producción
+
+Definir en la plataforma de despliegue las variables de `.env.production.example`:
+
+```env
+VITE_API_URL=https://<backend-production-domain>/api/v1
+VITE_BUSINESS_TIMEZONE=America/Managua
+VITE_STRICT_PRODUCTION=true
+```
+
+Los builds de CI/Vercel fallan si la API no es HTTPS, apunta a localhost o no termina en `/api/v1`. `VITE_STRICT_PRODUCTION=true` aplica la misma validación en un build manual. Un build local normal puede servirse con `npm run preview` contra la API local sin debilitar la validación de despliegue. El dominio del frontend debe incluirse a su vez en `CORS_ORIGIN` del backend.
 
 ## Pruebas
 
@@ -102,6 +118,7 @@ Flujos verificados:
 3. Abrir caja → recibir pago → cerrar caja.
 4. Consultar dashboard → filtrar ingresos mensuales.
 5. Registrar entrada → registrar salida.
+6. Consultar la conciliación heredada con rol ADMIN.
 
 Los artefactos de fallo se escriben en `test-results/` y el reporte HTML en `playwright-report/`; ambos están ignorados por Git.
 

@@ -6,7 +6,8 @@ export type Permission =
   | "billing:manage"
   | "services:manage"
   | "cash:manage"
-  | "users:manage";
+  | "users:manage"
+  | "legacy:manage";
 
 const rolePermissions: Record<UserRole, readonly Permission[]> = {
   ADMIN: [
@@ -16,6 +17,7 @@ const rolePermissions: Record<UserRole, readonly Permission[]> = {
     "services:manage",
     "cash:manage",
     "users:manage",
+    "legacy:manage",
   ],
   RECEPTIONIST: [
     "dashboard:view",

@@ -5,6 +5,7 @@ import { useFeedback } from "../../hooks/useFeedback";
 import { attendanceService } from "../../services/attendance.service";
 import { userService } from "../../services/user.service";
 import type { AttendanceRecord, User } from "../../services/types";
+import { businessToday } from "../../utils/businessDate";
 import MyAttendance from "./MyAttendance";
 import "../features.css";
 import "../reports/reports.css";
@@ -27,7 +28,7 @@ export default function AttendancePage() {
   const [error, setError] = useState("");
   const [absence, setAbsence] = useState<AbsenceForm>({
     userId: "",
-    attendanceDate: new Date().toISOString().slice(0, 10),
+    attendanceDate: businessToday(),
     status: "Ausente",
     justification: "",
   });

@@ -5,11 +5,12 @@ import MonthlyRevenueReport from "./MonthlyRevenueReport";
 import ReceivablesReport from "./ReceivablesReport";
 import ReportFilters from "./ReportFilters";
 import ServicesReport from "./ServicesReport";
+import { businessToday } from "../../utils/businessDate";
 import "../features.css";
 import "./reports.css";
 
 type Tab = "daily" | "monthly" | "services" | "receivables";
-const now = new Date(); const today = now.toISOString().slice(0, 10); const monthStart = `${today.slice(0, 7)}-01`;
+const now = new Date(); const today = businessToday(now); const monthStart = `${today.slice(0, 7)}-01`;
 export default function ReportsPage() {
   const [tab, setTab] = useState<Tab>("daily");
   const [filters, setFilters] = useState<{ from: string; to: string; year: number; category: string; method: MetodoPago | "" }>({ from: monthStart, to: today, year: now.getFullYear(), category: "", method: "" });

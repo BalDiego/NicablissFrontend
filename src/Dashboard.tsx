@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { dashboardService } from "./services/dashboard.service";
 import type { DailyDashboardReport, MetodoPago } from "./services/types";
+import { businessToday } from "./utils/businessDate";
 import "./App.css";
 import "./features/reports/reports.css";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => businessToday();
 const money = (value: number) => value.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
 export default function Dashboard() {

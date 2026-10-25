@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { attendanceService } from "../../services/attendance.service";
 import type { AttendanceReportData } from "../../services/types";
 import { exportCsv } from "../reports/report-export";
+import { businessToday } from "../../utils/businessDate";
 import "../reports/reports.css";
 
-const today = new Date().toISOString().slice(0, 10); const start = `${today.slice(0, 7)}-01`;
+const today = businessToday(); const start = `${today.slice(0, 7)}-01`;
 export default function AttendanceReport() {
   const [from, setFrom] = useState(start); const [to, setTo] = useState(today); const [report, setReport] = useState<AttendanceReportData | null>(null);
   const load = useCallback(async () => setReport(await attendanceService.report(from, to)), [from, to]); useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);

@@ -80,8 +80,8 @@ export default function UsuariosRoles() {
       return;
     }
 
-    if (formNuevo.password.length < 4) {
-      setFormError("La contraseña debe tener al menos 4 caracteres.");
+    if (formNuevo.password.length < 12) {
+      setFormError("La contraseña debe tener al menos 12 caracteres.");
       return;
     }
 
@@ -149,8 +149,8 @@ export default function UsuariosRoles() {
       };
 
       if (formEditar.password.trim()) {
-        if (formEditar.password.trim().length < 4) {
-          setFormError("La nueva contraseña debe tener al menos 4 caracteres.");
+        if (formEditar.password.trim().length < 12) {
+          setFormError("La nueva contraseña debe tener al menos 12 caracteres.");
           setSubmitting(false);
           return;
         }
@@ -514,7 +514,9 @@ export default function UsuariosRoles() {
                         id="crear-password"
                         type={mostrarPassword ? "text" : "password"}
                         className="form-input"
-                        placeholder="Mínimo 4 caracteres"
+                        placeholder="Mínimo 12 caracteres"
+                        minLength={12}
+                        autoComplete="new-password"
                         value={formNuevo.password}
                         onChange={(e) => setFormNuevo({ ...formNuevo, password: e.target.value })}
                         required
@@ -663,6 +665,8 @@ export default function UsuariosRoles() {
                     type="password"
                     className="form-input"
                     placeholder="Dejar en blanco para conservar la actual"
+                    minLength={12}
+                    autoComplete="new-password"
                     value={formEditar.password}
                     onChange={(e) => setFormEditar({ ...formEditar, password: e.target.value })}
                   />

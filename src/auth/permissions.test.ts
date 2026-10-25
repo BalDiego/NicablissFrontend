@@ -6,6 +6,8 @@ describe("permissions", () => {
     expect(hasPermission("ADMIN", "users:manage")).toBe(true);
     expect(hasPermission("RECEPTIONIST", "users:manage")).toBe(false);
     expect(hasPermission("STAFF", "users:manage")).toBe(false);
+    expect(hasPermission("ADMIN", "legacy:manage")).toBe(true);
+    expect(hasPermission("RECEPTIONIST", "legacy:manage")).toBe(false);
   });
 
   it("permite al personal operativo acceder a servicios, no a caja", () => {

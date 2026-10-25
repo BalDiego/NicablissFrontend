@@ -28,6 +28,7 @@ const navItems: NavItem[] = [
   { path: "/reports", label: "Reportes", icon: "09", roles: managementRoles },
   { path: "/service-catalog", label: "Catálogo de servicios", icon: "10", roles: ["ADMIN"] },
   { path: "/users", label: "Usuarios y roles", icon: "11", roles: ["ADMIN"] },
+  { path: "/legacy-administration", label: "Datos heredados", icon: "12", roles: ["ADMIN"] },
 ];
 
 type Notification = {

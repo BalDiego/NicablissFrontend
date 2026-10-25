@@ -3,8 +3,21 @@
  * Maneja automáticamente encabezados JSON, Bearer Token y códigos de error comunes (401, 403, 500).
  */
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:4000/api/v1";
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const API_BASE_URL = (configuredApiUrl || "http://localhost:4000/api/v1").replace(/\/$/, "");
+
+if (typeof __STRICT_PRODUCTION_API__ !== "undefined" && __STRICT_PRODUCTION_API__) {
+  if (!configuredApiUrl) {
+    throw new Error("VITE_API_URL es obligatorio en producción");
+  }
+  const parsed = new URL(API_BASE_URL);
+  if (parsed.protocol !== "https:" || ["localhost", "127.0.0.1"].includes(parsed.hostname)) {
+    throw new Error("VITE_API_URL debe apuntar a una API HTTPS remota en producción");
+  }
+  if (!parsed.pathname.replace(/\/$/, "").endsWith("/api/v1")) {
+    throw new Error("VITE_API_URL debe terminar en /api/v1");
+  }
+}
 
 export class ApiError extends Error {
   code?: string;
@@ -101,7 +114,7 @@ class ApiClient {
       }
       if (err instanceof TypeError && err.message.includes("fetch")) {
         throw new ApiError(
-          "No se pudo conectar con el servidor de Nicabliss (http://localhost:4000). Verifica que la API esté encendida.",
+          `No se pudo conectar con el servidor de Nicabliss (${API_BASE_URL}). Verifica la configuración y disponibilidad de la API.`,
           "NETWORK_ERROR"
         );
       }
