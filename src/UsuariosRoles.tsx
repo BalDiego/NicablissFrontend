@@ -5,6 +5,16 @@ import type { User } from "./services/types";
 import { useFeedback } from "./hooks/useFeedback";
 import "./UsuariosRoles.css";
 
+function AdminStatIcon({ type }: { type: "users" | "shield" | "desk" | "staff" }) {
+  const paths = {
+    users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
+    shield: <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" /><path d="m9 12 2 2 4-4" /></>,
+    desk: <><path d="M4 18h16M6 18v3M18 18v3M5 14h14l-1-8H6l-1 8Z" /><path d="M9 10h6" /></>,
+    staff: <><path d="M4 21v-3a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v3" /><circle cx="12" cy="7" r="4" /><path d="M9 21v-3M15 21v-3" /></>,
+  };
+  return <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[type]}</svg>;
+}
+
 export default function UsuariosRoles() {
   const { confirm } = useFeedback();
   const [usuarios, setUsuarios] = useState<User[]>([]);
@@ -243,7 +253,7 @@ export default function UsuariosRoles() {
             <span className="usuarios-stat-badge badge-slate">Cuentas activas</span>
           </div>
           <div className="usuarios-stat-icon" style={{ background: "#f8fafc", color: "#334155" }}>
-            👥
+            <AdminStatIcon type="users" />
           </div>
         </div>
 
@@ -254,7 +264,7 @@ export default function UsuariosRoles() {
             <span className="usuarios-stat-badge badge-purple">Acceso Total</span>
           </div>
           <div className="usuarios-stat-icon" style={{ background: "#f3e8ff", color: "#7c3aed" }}>
-            🛡️
+            <AdminStatIcon type="shield" />
           </div>
         </div>
 
@@ -265,7 +275,7 @@ export default function UsuariosRoles() {
             <span className="usuarios-stat-badge badge-blue">Front Desk</span>
           </div>
           <div className="usuarios-stat-icon" style={{ background: "#e0f2fe", color: "#0284c7" }}>
-            🛎️
+            <AdminStatIcon type="desk" />
           </div>
         </div>
 
@@ -276,7 +286,7 @@ export default function UsuariosRoles() {
             <span className="usuarios-stat-badge badge-green">Cocina & Lavandería</span>
           </div>
           <div className="usuarios-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
-            🧹
+            <AdminStatIcon type="staff" />
           </div>
         </div>
       </div>
@@ -285,7 +295,7 @@ export default function UsuariosRoles() {
       <div className="usuarios-panel">
         <div className="usuarios-toolbar">
           <div className="usuarios-search-box">
-            <span className="search-icon-inside">🔍</span>
+            <span className="search-icon-inside" aria-hidden="true" />
             <input
               type="text"
               className="usuarios-search-input"
@@ -380,9 +390,9 @@ export default function UsuariosRoles() {
                       </td>
                       <td>
                         <span className={`role-pill role-${u.role}`}>
-                          {u.role === "ADMIN" && "🛡️ Administrador"}
-                          {u.role === "RECEPTIONIST" && "🛎️ Recepción"}
-                          {u.role === "STAFF" && "🧹 Staff"}
+                          {u.role === "ADMIN" && "Administrador"}
+                          {u.role === "RECEPTIONIST" && "Recepción"}
+                          {u.role === "STAFF" && "Staff"}
                         </span>
                       </td>
                       <td>
@@ -410,7 +420,7 @@ export default function UsuariosRoles() {
                             onClick={() => abrirEditar(u)}
                             title="Modificar datos o resetear contraseña"
                           >
-                            ✏️ Editar
+                            Editar
                           </button>
                           <button
                             type="button"
@@ -425,7 +435,7 @@ export default function UsuariosRoles() {
                                 : "Eliminar usuario del sistema"
                             }
                           >
-                            🗑️ Eliminar
+                            Eliminar
                           </button>
                         </div>
                       </td>
@@ -541,9 +551,9 @@ export default function UsuariosRoles() {
                       value={formNuevo.role}
                       onChange={(e) => setFormNuevo({ ...formNuevo, role: e.target.value as User["role"] })}
                     >
-                      <option value="RECEPTIONIST">🛎️ RECEPTIONIST</option>
-                      <option value="ADMIN">🛡️ ADMIN</option>
-                      <option value="STAFF">🧹 STAFF</option>
+                      <option value="RECEPTIONIST">RECEPTIONIST</option>
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="STAFF">STAFF</option>
                     </select>
                   </div>
                 </div>
@@ -651,9 +661,9 @@ export default function UsuariosRoles() {
                       }
                       onChange={(e) => setFormEditar({ ...formEditar, role: e.target.value as User["role"] })}
                     >
-                      <option value="RECEPTIONIST">🛎️ RECEPTIONIST</option>
-                      <option value="ADMIN">🛡️ ADMIN</option>
-                      <option value="STAFF">🧹 STAFF</option>
+                      <option value="RECEPTIONIST">RECEPTIONIST</option>
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="STAFF">STAFF</option>
                     </select>
                   </div>
                 </div>

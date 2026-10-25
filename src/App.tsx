@@ -29,6 +29,7 @@ import SchedulePage from "./features/attendance/SchedulePage";
 import { useAuth } from "./hooks/useAuth";
 import "./App.css";
 import "./Login.css";
+import "./polish.css";
 
 const managementRoles = ["ADMIN", "RECEPTIONIST"] as const;
 const serviceRoles = ["ADMIN", "RECEPTIONIST", "STAFF"] as const;
