@@ -8,7 +8,7 @@ export const dashboardService = {
     const res = await apiClient.get<{ success: boolean; data: DashboardMetrics }>("/dashboard/metrics");
     return res.data;
   },
-  async getDaily(date: string, method?: MetodoPago, category?: string): Promise<DailyDashboardReport> {
-    return reportService.getDashboard(date, method, category);
+  async getDaily(date: string, method?: MetodoPago, category?: string, options?: { force?: boolean }): Promise<DailyDashboardReport> {
+    return reportService.getDashboard(date, method, category, options);
   },
 };

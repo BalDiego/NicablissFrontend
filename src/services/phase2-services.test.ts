@@ -224,6 +224,31 @@ describe("Phase 2 API contracts", () => {
     expect((await reportService.getCategories("2026-10-01", "2026-10-25")).total).toBe(90);
   });
 
+  it("deduplicates dashboard reads and invalidates cached data after mutations", async () => {
+    let requests = 0;
+    server.use(
+      http.get(`${apiUrl}/reports/dashboard`, () => {
+        requests += 1;
+        return HttpResponse.json({
+          success: true,
+          data: { date: "2026-10-26", filters: {}, income: { collected: requests, invoiced: 0, pending: 0, advances: 0 } },
+        });
+      })
+    );
+
+    const [first, duplicate] = await Promise.all([
+      reportService.getDashboard("2026-10-26"),
+      reportService.getDashboard("2026-10-26"),
+    ]);
+    expect(first.income.collected).toBe(1);
+    expect(duplicate.income.collected).toBe(1);
+    expect(requests).toBe(1);
+
+    window.dispatchEvent(new CustomEvent("nicabliss:data-mutated"));
+    expect((await reportService.getDashboard("2026-10-26")).income.collected).toBe(2);
+    expect((await reportService.getDashboard("2026-10-26", undefined, undefined, { force: true })).income.collected).toBe(3);
+  });
+
   it("registers personal attendance and requests the monthly report", async () => {
     server.use(
       http.post(`${apiUrl}/attendance/check-in`, () => HttpResponse.json({ success: true, data: { id: 1, userId: "usr_admin_001", status: "Presente" } }, { status: 201 })),

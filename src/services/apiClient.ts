@@ -107,6 +107,11 @@ class ApiClient {
         throw new ApiError(errorMessage, errorCode, response.status);
       }
 
+      const requestMethod = (options.method || "GET").toUpperCase();
+      if (requestMethod !== "GET" && requestMethod !== "HEAD") {
+        window.dispatchEvent(new CustomEvent("nicabliss:data-mutated"));
+      }
+
       return data as T;
     } catch (err: unknown) {
       if (err instanceof ApiError) {

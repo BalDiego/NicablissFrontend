@@ -61,6 +61,9 @@ input::placeholder, textarea::placeholder { color: #9aa8a1; }
 
 .route-loading,
 .status-page { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 24px; text-align: center; background: radial-gradient(circle at 50% 30%, #fff, var(--forest-50)); }
+.module-loading { display: grid; place-content: center; justify-items: center; gap: 12px; min-height: calc(100vh - var(--header-h, 72px)); color: var(--ink-500); font-size: 12px; }
+.module-loading span { width: 28px; height: 28px; border: 2px solid var(--forest-100); border-top-color: var(--forest-700); border-radius: 50%; animation: loading-spin .7s linear infinite; }
+.module-loading p { margin: 0; }
 .status-page strong { color: var(--gold-500); font: 700 72px/1 Georgia, serif; }
 .status-page h1, .status-page p { margin: 0; }
 .status-page h1 { color: var(--forest-950); }
@@ -80,6 +83,7 @@ input::placeholder, textarea::placeholder { color: #9aa8a1; }
 
 @keyframes toast-in { from { opacity: 0; transform: translateY(12px); } }
 @keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(.98); } }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 768px) {
   input, select, textarea { font-size: 16px !important; }

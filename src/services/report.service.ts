@@ -8,13 +8,43 @@ import type {
   ServicesReport,
 } from "./types";
 
+const dashboardCache = new Map<string, { data: DailyDashboardReport; expiresAt: number }>();
+const dashboardRequests = new Map<string, Promise<DailyDashboardReport>>();
+const DASHBOARD_CACHE_MS = 15_000;
+let dashboardGeneration = 0;
+
+if (typeof window !== "undefined") {
+  window.addEventListener("nicabliss:data-mutated", () => {
+    dashboardGeneration += 1;
+    dashboardCache.clear();
+  });
+}
+
 export const reportService = {
-  async getDashboard(date: string, method?: MetodoPago, category?: string): Promise<DailyDashboardReport> {
+  async getDashboard(date: string, method?: MetodoPago, category?: string, options: { force?: boolean } = {}): Promise<DailyDashboardReport> {
     const params = new URLSearchParams({ date });
     if (method) params.set("method", method);
     if (category) params.set("category", category);
-    const response = await apiClient.get<ApiSuccess<DailyDashboardReport>>(`/reports/dashboard?${params}`);
-    return response.data;
+    const key = params.toString();
+    const cached = dashboardCache.get(key);
+    if (!options.force && cached && cached.expiresAt > Date.now()) return cached.data;
+    if (!options.force) {
+      const pending = dashboardRequests.get(key);
+      if (pending) return pending;
+    }
+    const generation = dashboardGeneration;
+    const request = apiClient.get<ApiSuccess<DailyDashboardReport>>(`/reports/dashboard?${params}`)
+      .then((response) => {
+        if (generation === dashboardGeneration) {
+          dashboardCache.set(key, { data: response.data, expiresAt: Date.now() + DASHBOARD_CACHE_MS });
+        }
+        return response.data;
+      })
+      .finally(() => {
+        if (dashboardRequests.get(key) === request) dashboardRequests.delete(key);
+      });
+    dashboardRequests.set(key, request);
+    return request;
   },
 
   async getServices(from: string, to: string, category?: string): Promise<ServicesReport> {

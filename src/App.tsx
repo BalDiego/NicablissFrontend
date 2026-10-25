@@ -1,38 +1,48 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppLayout from "./components/AppLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleGuard from "./components/RoleGuard";
-import Dashboard from "./Dashboard";
-import PedidosAlimentos from "./PedidosAlimentos";
-import Lavanderia from "./Lavanderia";
-import CajaCierres from "./CajaCierres";
-import UsuariosRoles from "./UsuariosRoles";
 import LoginPage from "./pages/LoginPage";
 import ForbiddenPage from "./pages/ForbiddenPage";
 import NotFoundPage from "./pages/NotFoundPage";
-import CustomersPage from "./features/customers/CustomersPage";
-import CustomerDetailPage from "./features/customers/CustomerDetailPage";
-import ReservationsPage from "./features/reservations/ReservationsPage";
-import ReservationForm from "./features/reservations/ReservationForm";
-import ReservationDetailPage from "./features/reservations/ReservationDetailPage";
-import StaysPage from "./features/stays/StaysPage";
-import StayDetailPage from "./features/stays/StayDetailPage";
-import StayServicesPage from "./features/services/StayServicesPage";
-import ServiceCatalogPage from "./features/services/ServiceCatalogPage";
-import InvoicesPage from "./features/invoices/InvoicesPage";
-import InvoiceDetailPage from "./features/invoices/InvoiceDetailPage";
-import ReportsPage from "./features/reports/ReportsPage";
-import AttendancePage from "./features/attendance/AttendancePage";
-import LegacyAdministrationPage from "./features/legacy/LegacyAdministrationPage";
-import AttendanceReport from "./features/attendance/AttendanceReport";
-import SchedulePage from "./features/attendance/SchedulePage";
 import { useAuth } from "./hooks/useAuth";
+import "./PedidosAlimentos.css";
+import "./Lavanderia.css";
+import "./CajaCierres.css";
+import "./UsuariosRoles.css";
 import "./App.css";
 import "./Login.css";
 import "./polish.css";
 
 const managementRoles = ["ADMIN", "RECEPTIONIST"] as const;
 const serviceRoles = ["ADMIN", "RECEPTIONIST", "STAFF"] as const;
+
+const Dashboard = lazy(() => import("./Dashboard"));
+const PedidosAlimentos = lazy(() => import("./PedidosAlimentos"));
+const Lavanderia = lazy(() => import("./Lavanderia"));
+const CajaCierres = lazy(() => import("./CajaCierres"));
+const UsuariosRoles = lazy(() => import("./UsuariosRoles"));
+const CustomersPage = lazy(() => import("./features/customers/CustomersPage"));
+const CustomerDetailPage = lazy(() => import("./features/customers/CustomerDetailPage"));
+const ReservationsPage = lazy(() => import("./features/reservations/ReservationsPage"));
+const ReservationForm = lazy(() => import("./features/reservations/ReservationForm"));
+const ReservationDetailPage = lazy(() => import("./features/reservations/ReservationDetailPage"));
+const StaysPage = lazy(() => import("./features/stays/StaysPage"));
+const StayDetailPage = lazy(() => import("./features/stays/StayDetailPage"));
+const StayServicesPage = lazy(() => import("./features/services/StayServicesPage"));
+const ServiceCatalogPage = lazy(() => import("./features/services/ServiceCatalogPage"));
+const InvoicesPage = lazy(() => import("./features/invoices/InvoicesPage"));
+const InvoiceDetailPage = lazy(() => import("./features/invoices/InvoiceDetailPage"));
+const ReportsPage = lazy(() => import("./features/reports/ReportsPage"));
+const AttendancePage = lazy(() => import("./features/attendance/AttendancePage"));
+const LegacyAdministrationPage = lazy(() => import("./features/legacy/LegacyAdministrationPage"));
+const AttendanceReport = lazy(() => import("./features/attendance/AttendanceReport"));
+const SchedulePage = lazy(() => import("./features/attendance/SchedulePage"));
+
+function LazyRoute({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<div className="module-loading" role="status"><span /><p>Cargando módulo...</p></div>}>{children}</Suspense>;
+}
 
 function HomeRedirect() {
   const { user } = useAuth();
@@ -46,36 +56,36 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route index element={<HomeRedirect />} />
-          <Route path="attendance" element={<AttendancePage />} />
+          <Route path="attendance" element={<LazyRoute><AttendancePage /></LazyRoute>} />
 
           <Route element={<RoleGuard allowedRoles={managementRoles} />}>
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="customers" element={<CustomersPage />} />
-            <Route path="customers/:id" element={<CustomerDetailPage />} />
-            <Route path="reservations" element={<ReservationsPage />} />
-            <Route path="reservations/new" element={<ReservationForm />} />
-            <Route path="reservations/:id" element={<ReservationDetailPage />} />
+            <Route path="dashboard" element={<LazyRoute><Dashboard /></LazyRoute>} />
+            <Route path="customers" element={<LazyRoute><CustomersPage /></LazyRoute>} />
+            <Route path="customers/:id" element={<LazyRoute><CustomerDetailPage /></LazyRoute>} />
+            <Route path="reservations" element={<LazyRoute><ReservationsPage /></LazyRoute>} />
+            <Route path="reservations/new" element={<LazyRoute><ReservationForm /></LazyRoute>} />
+            <Route path="reservations/:id" element={<LazyRoute><ReservationDetailPage /></LazyRoute>} />
             <Route path="billing" element={<Navigate to="/invoices" replace />} />
-            <Route path="invoices" element={<InvoicesPage />} />
-            <Route path="invoices/:id" element={<InvoiceDetailPage />} />
-            <Route path="cash" element={<CajaCierres />} />
-            <Route path="reports" element={<ReportsPage />} />
+            <Route path="invoices" element={<LazyRoute><InvoicesPage /></LazyRoute>} />
+            <Route path="invoices/:id" element={<LazyRoute><InvoiceDetailPage /></LazyRoute>} />
+            <Route path="cash" element={<LazyRoute><CajaCierres /></LazyRoute>} />
+            <Route path="reports" element={<LazyRoute><ReportsPage /></LazyRoute>} />
           </Route>
 
           <Route element={<RoleGuard allowedRoles={serviceRoles} />}>
-            <Route path="stays" element={<StaysPage />} />
-            <Route path="stays/:id" element={<StayDetailPage />} />
-            <Route path="stays/:id/services" element={<StayServicesPage />} />
-            <Route path="food-orders" element={<PedidosAlimentos />} />
-            <Route path="laundry" element={<Lavanderia />} />
+            <Route path="stays" element={<LazyRoute><StaysPage /></LazyRoute>} />
+            <Route path="stays/:id" element={<LazyRoute><StayDetailPage /></LazyRoute>} />
+            <Route path="stays/:id/services" element={<LazyRoute><StayServicesPage /></LazyRoute>} />
+            <Route path="food-orders" element={<LazyRoute><PedidosAlimentos /></LazyRoute>} />
+            <Route path="laundry" element={<LazyRoute><Lavanderia /></LazyRoute>} />
           </Route>
 
           <Route element={<RoleGuard allowedRoles={["ADMIN"]} />}>
-            <Route path="service-catalog" element={<ServiceCatalogPage />} />
-            <Route path="users" element={<UsuariosRoles />} />
-            <Route path="legacy-administration" element={<LegacyAdministrationPage />} />
-            <Route path="attendance/report" element={<AttendanceReport />} />
-            <Route path="attendance/schedules" element={<SchedulePage />} />
+            <Route path="service-catalog" element={<LazyRoute><ServiceCatalogPage /></LazyRoute>} />
+            <Route path="users" element={<LazyRoute><UsuariosRoles /></LazyRoute>} />
+            <Route path="legacy-administration" element={<LazyRoute><LegacyAdministrationPage /></LazyRoute>} />
+            <Route path="attendance/report" element={<LazyRoute><AttendanceReport /></LazyRoute>} />
+            <Route path="attendance/schedules" element={<LazyRoute><SchedulePage /></LazyRoute>} />
           </Route>
 
           <Route path="403" element={<ForbiddenPage />} />
