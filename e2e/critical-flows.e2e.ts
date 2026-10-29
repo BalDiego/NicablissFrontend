@@ -46,7 +46,7 @@ test.describe.serial("flujos críticos del PMS", () => {
 
     await api("/cash-register/open", {
       method: "POST",
-      data: { responsable: "Precondición E2E", fondoInicial: 100 },
+      data: { fondoInicial: 100 },
     });
 
     await page.goto("/customers");
@@ -126,7 +126,7 @@ test.describe.serial("flujos críticos del PMS", () => {
     await page.goto("/cash");
     await expect(page.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
     await page.getByRole("button", { name: "+ Abrir caja" }).click();
-    await page.getByLabel("Responsable del turno").fill("Turno Playwright");
+    await expect(page.getByRole("dialog").getByText("Administrador Nicabliss")).toBeVisible();
     await page.getByLabel("Fondo inicial ($)").fill("50");
     await page.getByRole("button", { name: "Abrir caja", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Caja abierta" })).toBeVisible();

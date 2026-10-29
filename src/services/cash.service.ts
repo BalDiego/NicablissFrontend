@@ -22,9 +22,8 @@ export const cashService = {
     return res.data;
   },
 
-  async openSession(responsable: string, fondoInicial: number): Promise<CashSession> {
+  async openSession(fondoInicial: number): Promise<CashSession> {
     const res = await apiClient.post<{ success: boolean; data: CashSession }>("/cash-register/open", {
-      responsable,
       fondoInicial,
     });
     return res.data;
@@ -36,8 +35,12 @@ export const cashService = {
     descripcion: string;
     metodo: MetodoPago;
     monto: number;
-  }): Promise<CashSession> {
-    const res = await apiClient.post<{ success: boolean; data: CashSession }>("/cash-register/movements", movement);
+  }, idempotencyKey?: string): Promise<CashSession> {
+    const res = await apiClient.post<{ success: boolean; data: CashSession }>(
+      "/cash-register/movements",
+      movement,
+      idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined
+    );
     return res.data;
   },
 

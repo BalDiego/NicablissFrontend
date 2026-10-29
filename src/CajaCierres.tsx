@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { cashService } from "./services/cash.service";
 import { useFeedback } from "./hooks/useFeedback";
+import { useAuth } from "./hooks/useAuth";
 import type {
   CashByMethodRow,
   CashByUserRow,
@@ -41,6 +42,7 @@ const issueLabels: Record<string, string> = {
 
 function CajaCierres() {
   const { notify, confirm } = useFeedback();
+  const { user } = useAuth();
   const [sesion, setSesion] = useState<CashSession | null>(null);
   const [historial, setHistorial] = useState<CashSession[]>([]);
   const [conciliacion, setConciliacion] = useState<CashReconciliation | null>(null);
@@ -56,7 +58,6 @@ function CajaCierres() {
   const [mostrarMovimiento, setMostrarMovimiento] = useState(false);
   const [mostrarCierre, setMostrarCierre] = useState(false);
 
-  const [responsable, setResponsable] = useState("");
   const [fondoInicial, setFondoInicial] = useState("0");
 
   const [tipo, setTipo] = useState<TipoMovimiento>("Ingreso");
@@ -67,6 +68,7 @@ function CajaCierres() {
 
   const [efectivoContado, setEfectivoContado] = useState("");
   const [observaciones, setObservaciones] = useState("");
+  const [movementIdempotencyKey, setMovementIdempotencyKey] = useState("");
 
   const cargarDatosCaja = useCallback(async () => {
     try {
@@ -121,6 +123,9 @@ function CajaCierres() {
   const ingresosDigitales = sesion?.ingresosDigitales ?? 0;
   const salidasEfectivo = sesion?.salidasEfectivo ?? 0;
   const efectivoEsperado = sesion?.efectivoEsperado ?? 0;
+  const esResponsable = Boolean(sesion && user && sesion.openedBy === user.id);
+  const cierreAdministrativo = Boolean(sesion && user?.role === "ADMIN" && sesion.openedBy !== user.id);
+  const puedeCerrar = esResponsable || cierreAdministrativo;
 
   const contado = Number(efectivoContado);
   const diferencia = contado - efectivoEsperado;
@@ -129,11 +134,6 @@ function CajaCierres() {
     e.preventDefault();
     const fondo = Number(fondoInicial);
 
-    if (!responsable.trim()) {
-      notify("Ingresa el nombre del responsable.", "error");
-      return;
-    }
-
     if (!Number.isFinite(fondo) || fondo < 0) {
       notify("El fondo inicial debe ser válido.", "error");
       return;
@@ -141,10 +141,9 @@ function CajaCierres() {
 
     try {
       setSubmitting(true);
-      await cashService.openSession(responsable.trim(), fondo);
+      await cashService.openSession(fondo);
 
       setMostrarApertura(false);
-      setResponsable("");
       setFondoInicial("0");
       await cargarDatosCaja();
       notify("Caja abierta correctamente");
@@ -179,9 +178,10 @@ function CajaCierres() {
         descripcion: descripcion.trim(),
         metodo,
         monto: valor,
-      });
+      }, movementIdempotencyKey || undefined);
 
       setMostrarMovimiento(false);
+      setMovementIdempotencyKey("");
       setTipo("Ingreso");
       setConcepto("Hospedaje");
       setDescripcion("");
@@ -215,8 +215,13 @@ function CajaCierres() {
       return;
     }
 
+    if (cierreAdministrativo && !observaciones.trim()) {
+      notify("El cierre administrativo requiere indicar el motivo.", "error");
+      return;
+    }
+
     const confirmed = await confirm(
-      `¿Confirmas el cierre de caja? Efectivo esperado: ${dinero(efectivoEsperado)}; contado: ${dinero(contado)}; diferencia: ${dinero(diferencia)}.`
+      `${cierreAdministrativo ? "¿Confirmas el cierre administrativo de caja?" : "¿Confirmas el cierre de caja?"} Efectivo esperado: ${dinero(efectivoEsperado)}; contado: ${dinero(contado)}; diferencia: ${dinero(diferencia)}.`
     );
     if (!confirmed) return;
 
@@ -243,6 +248,7 @@ function CajaCierres() {
     setMetodo("Efectivo");
     setDescripcion("");
     setMonto("");
+    setMovementIdempotencyKey(crypto.randomUUID());
     setMostrarMovimiento(true);
   };
 
@@ -271,21 +277,25 @@ function CajaCierres() {
           </button>
         ) : (
           <div className="caja-heading-actions">
-            <button
-              type="button"
-              className="caja-secondary"
-              onClick={abrirFormularioMovimiento}
-            >
-              + Registrar movimiento
-            </button>
+            {esResponsable && (
+              <button
+                type="button"
+                className="caja-secondary"
+                onClick={abrirFormularioMovimiento}
+              >
+                + Registrar movimiento
+              </button>
+            )}
 
-            <button
-              type="button"
-              className="caja-primary"
-              onClick={() => setMostrarCierre(true)}
-            >
-              Realizar cierre
-            </button>
+            {puedeCerrar && (
+              <button
+                type="button"
+                className="caja-primary"
+                onClick={() => setMostrarCierre(true)}
+              >
+                {cierreAdministrativo ? "Cierre administrativo" : "Realizar cierre"}
+              </button>
+            )}
           </div>
         )}
       </header>
@@ -353,6 +363,17 @@ function CajaCierres() {
           {sesion ? "En operación" : "Sin sesión"}
         </span>
       </section>
+
+      {sesion && !esResponsable && (
+        <div className={`caja-alert ${cierreAdministrativo ? "caja-alert-success" : "caja-alert-danger"}`} role="status">
+          <strong>Caja abierta por {sesion.openedByName || sesion.responsable}</strong>
+          <span>
+            {cierreAdministrativo
+              ? "Como administrador puedes cerrar esta sesión indicando el motivo; no puedes registrar movimientos en nombre del responsable."
+              : "Solo el responsable de este turno puede registrar cobros y movimientos. Pide que cierre la sesión antes de iniciar otro turno."}
+          </span>
+        </div>
+      )}
 
       <section className="caja-stats">
         <article className="caja-stat">
@@ -521,6 +542,7 @@ function CajaCierres() {
                 <th>Concepto</th>
                 <th>Descripción</th>
                 <th>Origen</th>
+                <th>Registrado por</th>
                 <th>Método</th>
                 <th>Monto</th>
               </tr>
@@ -550,6 +572,8 @@ function CajaCierres() {
                   </td>
 
                   <td>{movimiento.source === "PAYMENT" ? "Pago automático" : movimiento.source === "REVERSAL" ? "Reversión automática" : "Manual"}</td>
+
+                  <td>{movimiento.createdByName || "Sistema"}</td>
 
                   <td>{movimiento.metodo}</td>
 
@@ -606,6 +630,7 @@ function CajaCierres() {
                 <th>Responsable</th>
                 <th>Apertura</th>
                 <th>Cierre</th>
+                <th>Cerrado por</th>
                 <th>Ingresos</th>
                 <th>Efectivo esperado</th>
                 <th>Diferencia</th>
@@ -623,6 +648,7 @@ function CajaCierres() {
 
                   <td>{cierre.apertura}</td>
                   <td>{cierre.cierre || "—"}</td>
+                  <td>{cierre.closedByName || "Histórico sin atribución"}</td>
 
                   <td>
                     {dinero(
@@ -670,9 +696,9 @@ function CajaCierres() {
 
       {mostrarApertura && (
         <div className="caja-overlay">
-          <div className="caja-modal">
+          <div className="caja-modal" role="dialog" aria-modal="true" aria-labelledby="caja-apertura-title">
             <div className="caja-modal-heading">
-              <h2>Apertura de caja</h2>
+              <h2 id="caja-apertura-title">Apertura de caja</h2>
 
               <button
                 type="button"
@@ -683,19 +709,12 @@ function CajaCierres() {
             </div>
 
             <form onSubmit={abrirCaja}>
-              <label htmlFor="caja-responsable">
-                Responsable del turno
-              </label>
-
-              <input
-                id="caja-responsable"
-                required
-                value={responsable}
-                onChange={(e) =>
-                  setResponsable(e.target.value)
-                }
-                placeholder="Nombre del recepcionista"
-              />
+              <div className="caja-summary">
+                <div>
+                  <span>Responsable autenticado</span>
+                  <strong>{user?.fullName || user?.username || "Usuario actual"}</strong>
+                </div>
+              </div>
 
               <label htmlFor="caja-fondo">
                 Fondo inicial ($)
@@ -736,7 +755,7 @@ function CajaCierres() {
         </div>
       )}
 
-      {mostrarMovimiento && sesion && (
+      {mostrarMovimiento && sesion && esResponsable && (
         <div className="caja-overlay">
           <div className="caja-modal">
             <div className="caja-modal-heading">
@@ -802,6 +821,7 @@ function CajaCierres() {
               <textarea
                 id="caja-descripcion"
                 rows={3}
+                required
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
                 placeholder="Detalle del movimiento..."
@@ -863,11 +883,11 @@ function CajaCierres() {
         </div>
       )}
 
-      {mostrarCierre && sesion && (
+      {mostrarCierre && sesion && puedeCerrar && (
         <div className="caja-overlay">
           <div className="caja-modal">
             <div className="caja-modal-heading">
-              <h2>Arqueo y cierre de caja</h2>
+              <h2>{cierreAdministrativo ? "Cierre administrativo de caja" : "Arqueo y cierre de caja"}</h2>
 
               <button
                 type="button"
@@ -955,9 +975,10 @@ function CajaCierres() {
               <textarea
                 id="caja-observaciones"
                 rows={3}
+                required={cierreAdministrativo}
                 value={observaciones}
                 onChange={(e) => setObservaciones(e.target.value)}
-                placeholder="Observaciones del turno..."
+                placeholder={cierreAdministrativo ? "Motivo obligatorio del cierre administrativo..." : "Observaciones del turno..."}
               />
 
               <div className="caja-modal-actions">
@@ -973,9 +994,9 @@ function CajaCierres() {
                 <button
                   type="submit"
                   className="caja-primary"
-                  disabled={submitting || !conciliacion?.balanced}
+                  disabled={submitting || !conciliacion?.balanced || (cierreAdministrativo && !observaciones.trim())}
                 >
-                  {submitting ? "Cerrando..." : "Confirmar cierre"}
+                  {submitting ? "Cerrando..." : cierreAdministrativo ? "Confirmar cierre administrativo" : "Confirmar cierre"}
                 </button>
               </div>
             </form>
