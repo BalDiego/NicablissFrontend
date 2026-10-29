@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { cashService } from "./services/cash.service";
 import { useFeedback } from "./hooks/useFeedback";
 import { useAuth } from "./hooks/useAuth";
@@ -12,6 +12,7 @@ import type {
   ConceptoMovimiento,
   MetodoPago,
 } from "./services/types";
+import CashClosureDetail from "./features/cash/CashClosureDetail";
 import "./CajaCierres.css";
 
 const dinero = (valor: number) =>
@@ -54,8 +55,10 @@ function CajaCierres() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [cierreSeleccionado, setCierreSeleccionado] = useState<CashSession | null>(null);
   const requestId = useRef(0);
   const hasLoaded = useRef(false);
+  const detalleTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const [mostrarApertura, setMostrarApertura] = useState(false);
   const [mostrarMovimiento, setMostrarMovimiento] = useState(false);
@@ -72,6 +75,12 @@ function CajaCierres() {
   const [efectivoContado, setEfectivoContado] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [movementIdempotencyKey, setMovementIdempotencyKey] = useState("");
+
+  const cerrarDetalleCierre = useCallback(() => setCierreSeleccionado(null), []);
+
+  useEffect(() => {
+    if (!cierreSeleccionado) detalleTriggerRef.current?.focus();
+  }, [cierreSeleccionado]);
 
   const cargarDatosCaja = useCallback(async () => {
     const currentRequest = ++requestId.current;
@@ -628,6 +637,7 @@ function CajaCierres() {
                 <th>Ingresos</th>
                 <th>Efectivo esperado</th>
                 <th>Diferencia</th>
+                <th>Detalle</th>
               </tr>
             </thead>
 
@@ -665,6 +675,21 @@ function CajaCierres() {
                       {(cierre.diferencia ?? 0) > 0 ? "+" : ""}
                       {dinero(cierre.diferencia ?? 0)}
                     </span>
+                  </td>
+
+                  <td>
+                    <button
+                      type="button"
+                      className="caja-view-detail"
+                      aria-haspopup="dialog"
+                      aria-label={`Ver detalle del cierre de caja #${cierre.id}`}
+                      onClick={(event) => {
+                        detalleTriggerRef.current = event.currentTarget;
+                        setCierreSeleccionado(cierre);
+                      }}
+                    >
+                      Ver detalle
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -996,6 +1021,10 @@ function CajaCierres() {
             </form>
           </div>
         </div>
+      )}
+
+      {cierreSeleccionado && (
+        <CashClosureDetail key={cierreSeleccionado.id} session={cierreSeleccionado} onClose={cerrarDetalleCierre} />
       )}
     </main>
   );
