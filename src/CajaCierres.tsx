@@ -364,17 +364,6 @@ function CajaCierres() {
         </span>
       </section>
 
-      {sesion && !esResponsable && (
-        <div className={`caja-alert ${cierreAdministrativo ? "caja-alert-success" : "caja-alert-danger"}`} role="status">
-          <strong>Caja abierta por {sesion.openedByName || sesion.responsable}</strong>
-          <span>
-            {cierreAdministrativo
-              ? "Como administrador puedes cerrar esta sesión indicando el motivo; no puedes registrar movimientos en nombre del responsable."
-              : "Solo el responsable de este turno puede registrar cobros y movimientos. Pide que cierre la sesión antes de iniciar otro turno."}
-          </span>
-        </div>
-      )}
-
       <section className="caja-stats">
         <article className="caja-stat">
           <span>Fondo inicial</span>
