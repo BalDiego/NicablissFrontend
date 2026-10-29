@@ -92,7 +92,6 @@ export default function ReportsPage() {
           <h1>Reportes financieros</h1>
           <p>Venta facturada, dinero cobrado y saldos pendientes con fuentes contables separadas.</p>
         </div>
-        <button className="caja-secondary no-print" onClick={() => window.print()}>Imprimir reporte</button>
       </header>
 
       <section className="report-export no-print" aria-label="Descarga de reporte Excel">

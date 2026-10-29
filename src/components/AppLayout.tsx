@@ -226,9 +226,6 @@ export default function AppLayout() {
                   Gestionar usuarios y roles
                 </button>
               )}
-              <button type="button" className="user-menu-action" onClick={() => window.print()}>
-                Imprimir vista actual
-              </button>
               <button type="button" className="user-menu-action danger" onClick={signOut}>
                 Cerrar sesión
               </button>
