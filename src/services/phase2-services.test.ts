@@ -189,6 +189,33 @@ describe("Phase 2 API contracts", () => {
     expect(byUser.rows[0].userId).toBe("usr_admin_001");
   });
 
+  it("opens cash without accepting a client-supplied responsible and sends movement idempotency keys", async () => {
+    server.use(
+      http.post(`${apiUrl}/cash-register/open`, async ({ request }) => {
+        const body = await request.json() as Record<string, unknown>;
+        expect(body).toEqual({ fondoInicial: 50 });
+        return HttpResponse.json({
+          success: true,
+          data: { id: 88, responsable: "Administrador Nicabliss", openedBy: "usr_admin_001" },
+        }, { status: 201 });
+      }),
+      http.post(`${apiUrl}/cash-register/movements`, async ({ request }) => {
+        expect(request.headers.get("Idempotency-Key")).toBe("cash-movement-key-88");
+        return HttpResponse.json({ success: true, data: { id: 88, movimientos: [] } });
+      })
+    );
+
+    const session = await cashService.openSession(50);
+    expect(session.openedBy).toBe("usr_admin_001");
+    await cashService.addMovement({
+      tipo: "Ingreso",
+      concepto: "Otro ingreso",
+      descripcion: "Prueba de idempotencia",
+      metodo: "Efectivo",
+      monto: 5,
+    }, "cash-movement-key-88");
+  });
+
   it("requests administrative reports with stable date and range filters", async () => {
     server.use(
       http.get(`${apiUrl}/reports/dashboard`, ({ request }) => {
