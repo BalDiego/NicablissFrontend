@@ -10,8 +10,31 @@ export function useAutoRefresh(
 ): void {
   useEffect(() => {
     let active = true;
+    let inFlight = false;
+    let refreshPending = false;
+    let pendingForce = false;
     const refresh = (force = true) => {
-      if (active) void load(force);
+      if (!active) return;
+      if (inFlight) {
+        refreshPending = true;
+        pendingForce ||= force;
+        return;
+      }
+
+      inFlight = true;
+      const complete = () => {
+        inFlight = false;
+        if (!active || !refreshPending) return;
+        const nextForce = pendingForce;
+        refreshPending = false;
+        pendingForce = false;
+        refresh(nextForce);
+      };
+      try {
+        void Promise.resolve(load(force)).then(complete, complete);
+      } catch {
+        complete();
+      }
     };
     const onDataMutated = () => refresh(true);
     const onVisibilityChange = () => {

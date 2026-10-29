@@ -1,14 +1,14 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { dashboardService } from "./services/dashboard.service";
 import { useAutoRefresh } from "./hooks/useAutoRefresh";
+import { useBusinessToday } from "./hooks/useBusinessToday";
 import type { DailyDashboardReport, MetodoPago } from "./services/types";
-import { businessToday } from "./utils/businessDate";
+import { formatBusinessDateTime } from "./utils/businessDate";
 import "./App.css";
 import "./features/features.css";
 import "./features/reports/reports.css";
 
-const today = () => businessToday();
 const moneyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const compactMoneyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
 const money = (value: number) => moneyFormatter.format(value);
@@ -71,13 +71,19 @@ function PaymentMethodsChart({ items }: { items: DailyDashboardReport["byMethod"
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [date, setDate] = useState(today());
+  const businessDate = useBusinessToday();
+  const [date, setDate] = useState(businessDate);
   const [method, setMethod] = useState<MetodoPago | "">("");
   const [report, setReport] = useState<DailyDashboardReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const requestId = useRef(0);
   const loadedFilterKey = useRef("");
+  const followsToday = useRef(true);
+
+  useEffect(() => {
+    if (followsToday.current) setDate(businessDate);
+  }, [businessDate]);
 
   const load = useCallback(async (force = false) => {
     const currentRequest = ++requestId.current;
@@ -108,7 +114,7 @@ export default function Dashboard() {
       <header className="report-heading no-print">
         <div><span>ADMINISTRACIÓN / DASHBOARD</span><h1>Resumen financiero diario</h1><p>Una lectura clara del rendimiento operativo y financiero del hotel.</p></div>
         <div className="report-actions">
-          <label>Fecha<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+          <label>Fecha<input type="date" value={date} onChange={(event) => { followsToday.current = false; setDate(event.target.value); }} /></label>
           <label>Método<select value={method} onChange={(event) => setMethod(event.target.value as MetodoPago | "")}><option value="">Todos</option><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select></label>
           <button onClick={() => void load(true)} disabled={loading}>{loading ? "Actualizando..." : "Actualizar"}</button>
           <button onClick={() => window.print()}>Imprimir</button>
@@ -122,7 +128,7 @@ export default function Dashboard() {
         <section className="report-kpis dashboard-primary-kpis">
           <article><span>Cobrado</span><strong>{money(visibleReport.income.collected)}</strong><small>Dinero recibido en la fecha</small></article>
           <article><span>Facturado</span><strong>{money(visibleReport.income.invoiced)}</strong><small>Comprobantes emitidos</small></article>
-          <article><span>Saldo pendiente</span><strong>{money(visibleReport.income.pending)}</strong><small>{visibleReport.receivables.count} cuentas abiertas</small></article>
+          <article><span>Saldo pendiente vigente</span><strong>{money(visibleReport.income.pending)}</strong><small>{visibleReport.receivables.count} cuentas abiertas al consultar</small></article>
           <article><span>Anticipos</span><strong>{money(visibleReport.income.advances)}</strong><small>Cobros previos a emisión</small></article>
         </section>
 
@@ -141,7 +147,7 @@ export default function Dashboard() {
           <article><span>Clientes activos</span><strong>{visibleReport.activeCustomers}</strong><small>Con estancia vigente</small></article>
           <article><span>Reservas creadas</span><strong>{visibleReport.reservations.created}</strong><small>Durante la fecha</small></article>
           <article><span>Llegadas / salidas</span><strong>{visibleReport.reservations.arrivals} / {visibleReport.reservations.departures}</strong><small>Movimiento previsto</small></article>
-          <article><span>Estado de caja</span><strong className={visibleReport.cash.open ? "positive" : "negative"}>{visibleReport.cash.open ? "Abierta" : "Cerrada"}</strong><small>{visibleReport.cash.responsible || "Sin turno activo"}</small></article>
+          <article><span>Estado actual de caja</span><strong className={visibleReport.cash.open ? "positive" : "negative"}>{visibleReport.cash.open ? "Abierta" : "Cerrada"}</strong><small>{visibleReport.cash.responsible || "Sin turno activo"}</small></article>
         </section>
 
         <section className="report-panel dashboard-category-panel">
@@ -154,10 +160,10 @@ export default function Dashboard() {
 
         <section className="report-panel">
           <header><div><span className="dashboard-panel-eyebrow">ACTIVIDAD RECIENTE</span><h2>Últimos pagos</h2><p>Operaciones más recientes del día seleccionado.</p></div><button className="feature-link no-print" onClick={() => navigate("/cash")}>Ver caja</button></header>
-          <div className="report-table-wrap"><table className="report-table"><thead><tr><th>Pago</th><th>Cliente</th><th>Reserva</th><th>Método</th><th>Fecha</th><th>Importe</th></tr></thead><tbody>{visibleReport.recentPayments.map((payment) => <tr key={payment.paymentNumber}><td><strong>{payment.paymentNumber}</strong><small>{payment.kind === "REVERSAL" ? "Reversión" : "Cobro"}</small></td><td>{payment.customerName}</td><td>{payment.reservationCode || "—"}</td><td>{payment.method}</td><td>{new Date(payment.paymentDate).toLocaleString("es-NI")}</td><td className={payment.amount < 0 ? "negative" : "positive"}>{money(payment.amount)}</td></tr>)}</tbody></table>{visibleReport.recentPayments.length === 0 && <p className="feature-state">No hay pagos en esta fecha.</p>}</div>
+          <div className="report-table-wrap"><table className="report-table"><thead><tr><th>Pago</th><th>Cliente</th><th>Reserva</th><th>Método</th><th>Fecha</th><th>Importe</th></tr></thead><tbody>{visibleReport.recentPayments.map((payment) => <tr key={payment.paymentNumber}><td><strong>{payment.paymentNumber}</strong><small>{payment.kind === "REVERSAL" ? "Reversión" : "Cobro"}</small></td><td>{payment.customerName}</td><td>{payment.reservationCode || "—"}</td><td>{payment.method}</td><td>{formatBusinessDateTime(payment.paymentDate)}</td><td className={payment.amount < 0 ? "negative" : "positive"}>{money(payment.amount)}</td></tr>)}</tbody></table>{visibleReport.recentPayments.length === 0 && <p className="feature-state">No hay pagos en esta fecha.</p>}</div>
         </section>
 
-        <footer className="report-updated">Datos actualizados: {new Date(visibleReport.updatedAt).toLocaleString("es-NI")}</footer>
+        <footer className="report-updated">Datos actualizados: {formatBusinessDateTime(visibleReport.updatedAt)}</footer>
       </>}
     </main>
   );

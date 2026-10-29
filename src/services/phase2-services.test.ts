@@ -251,6 +251,31 @@ describe("Phase 2 API contracts", () => {
     expect((await reportService.getCategories("2026-10-01", "2026-10-25")).total).toBe(90);
   });
 
+  it("downloads the backend-generated XLSX with period and financial filters", async () => {
+    server.use(
+      http.get(`${apiUrl}/reports/export.xlsx`, ({ request }) => {
+        const url = new URL(request.url);
+        expect(url.searchParams.get("period")).toBe("weekly");
+        expect(url.searchParams.get("date")).toBe("2026-10-29");
+        expect(url.searchParams.get("category")).toBe("Hospedaje");
+        expect(url.searchParams.get("method")).toBe("Transferencia");
+        expect(request.headers.get("authorization")).toBe("Bearer test-token");
+        return new HttpResponse(new Uint8Array([0x50, 0x4b, 0x03, 0x04]), {
+          headers: { "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+        });
+      })
+    );
+
+    const workbook = await reportService.downloadWorkbook({
+      period: "weekly",
+      date: "2026-10-29",
+      category: "Hospedaje",
+      method: "Transferencia",
+    });
+    expect(workbook.type).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    expect([...new Uint8Array(await workbook.arrayBuffer())]).toEqual([0x50, 0x4b, 0x03, 0x04]);
+  });
+
   it("deduplicates dashboard reads and invalidates cached data after mutations", async () => {
     let requests = 0;
     server.use(
@@ -274,6 +299,56 @@ describe("Phase 2 API contracts", () => {
     window.dispatchEvent(new CustomEvent("nicabliss:data-mutated"));
     expect((await reportService.getDashboard("2026-10-26")).income.collected).toBe(2);
     expect((await reportService.getDashboard("2026-10-26", undefined, undefined, { force: true })).income.collected).toBe(3);
+  });
+
+  it("does not reuse a dashboard request that was in flight when data changed", async () => {
+    let requests = 0;
+    let releaseFirstRequest!: () => void;
+    let markFirstStarted!: () => void;
+    const firstStarted = new Promise<void>((resolve) => { markFirstStarted = resolve; });
+    const firstRequestGate = new Promise<void>((resolve) => { releaseFirstRequest = resolve; });
+    server.use(
+      http.get(`${apiUrl}/reports/dashboard`, async () => {
+        requests += 1;
+        const requestNumber = requests;
+        if (requestNumber === 1) {
+          markFirstStarted();
+          await firstRequestGate;
+        }
+        return HttpResponse.json({
+          success: true,
+          data: { date: "2026-10-27", filters: {}, income: { collected: requestNumber, invoiced: 0, pending: 0, advances: 0 } },
+        });
+      })
+    );
+
+    const staleRequest = reportService.getDashboard("2026-10-27");
+    await firstStarted;
+    window.dispatchEvent(new CustomEvent("nicabliss:data-mutated"));
+
+    const fresh = await reportService.getDashboard("2026-10-27");
+    expect(fresh.income.collected).toBe(2);
+    releaseFirstRequest();
+    expect((await staleRequest).income.collected).toBe(1);
+    expect((await reportService.getDashboard("2026-10-27")).income.collected).toBe(2);
+    expect(requests).toBe(2);
+  });
+
+  it("emits data-mutated only after a successful API write", async () => {
+    server.use(
+      http.post(`${apiUrl}/security/mutated`, () => HttpResponse.json({ success: true })),
+      http.post(`${apiUrl}/security/rejected`, () => HttpResponse.json({ success: false }, { status: 409 }))
+    );
+    const mutated = vi.fn();
+    window.addEventListener("nicabliss:data-mutated", mutated);
+    try {
+      await apiClient.post("/security/mutated", { value: 1 });
+      expect(mutated).toHaveBeenCalledOnce();
+      await expect(apiClient.post("/security/rejected", { value: 2 })).rejects.toMatchObject({ status: 409 });
+      expect(mutated).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener("nicabliss:data-mutated", mutated);
+    }
   });
 
   it("registers personal attendance and requests the monthly report", async () => {

@@ -521,6 +521,7 @@ export interface ReceivablesReportData {
 export interface RevenueCategoriesReport {
   from: string;
   to: string;
+  category?: string;
   total: number;
   items: Array<{ category: string; lineCount: number; invoiced: number }>;
 }

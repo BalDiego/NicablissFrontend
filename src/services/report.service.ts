@@ -17,10 +17,26 @@ if (typeof window !== "undefined") {
   window.addEventListener("nicabliss:data-mutated", () => {
     dashboardGeneration += 1;
     dashboardCache.clear();
+    dashboardRequests.clear();
   });
 }
 
 export const reportService = {
+  async downloadWorkbook(input: {
+    period: "daily" | "weekly" | "monthly";
+    date?: string;
+    month?: string;
+    method?: MetodoPago;
+    category?: string;
+  }): Promise<Blob> {
+    const params = new URLSearchParams({ period: input.period });
+    if (input.date) params.set("date", input.date);
+    if (input.month) params.set("month", input.month);
+    if (input.method) params.set("method", input.method);
+    if (input.category) params.set("category", input.category);
+    return apiClient.getBlob(`/reports/export.xlsx?${params.toString()}`);
+  },
+
   async getDashboard(date: string, method?: MetodoPago, category?: string, options: { force?: boolean } = {}): Promise<DailyDashboardReport> {
     const params = new URLSearchParams({ date });
     if (method) params.set("method", method);
@@ -64,8 +80,9 @@ export const reportService = {
     return response.data;
   },
 
-  async getCategories(from: string, to: string): Promise<RevenueCategoriesReport> {
+  async getCategories(from: string, to: string, category?: string): Promise<RevenueCategoriesReport> {
     const params = new URLSearchParams({ from, to });
+    if (category) params.set("category", category);
     const response = await apiClient.get<ApiSuccess<RevenueCategoriesReport>>(`/reports/revenue/categories?${params}`);
     return response.data;
   },

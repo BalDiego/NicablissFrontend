@@ -157,6 +157,45 @@ test.describe.serial("flujos críticos del PMS", () => {
     await year.fill("2026");
     await expect(page.getByRole("heading", { name: "Ingresos mensuales · 2026" })).toBeVisible();
     await expect(page.getByRole("row", { name: /Octubre/ })).toBeVisible();
+    await expect(page.getByLabel("Categoría")).toHaveCount(0);
+    await expect(page.getByLabel("Método de cobro")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Servicios" }).click();
+    await expect(page.getByLabel("Categoría")).toBeVisible();
+    await expect(page.getByLabel("Método de cobro")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Cuentas pendientes" }).click();
+    await expect(page.getByLabel("Desde")).toHaveCount(0);
+    await expect(page.getByLabel("Categoría")).toHaveCount(0);
+    await expect(page.getByLabel("Método de cobro")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Diario" }).click();
+    await page.getByLabel("Categoría").selectOption("Alimentos");
+    await page.getByLabel("Método de cobro").selectOption("Transferencia");
+    await expect(page.getByText("Categoría Alimentos aplicada a facturación")).toBeVisible();
+    await expect(page.getByText("Método Transferencia aplicado solo a cobros y anticipos")).toBeVisible();
+
+    await page.getByLabel("Periodo").selectOption("daily");
+    const [dailyDownload] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Descargar Excel" }).click(),
+    ]);
+    expect(dailyDownload.suggestedFilename()).toMatch(/nicabliss-reporte-diario-\d{4}-\d{2}-\d{2}\.xlsx/);
+
+    await page.getByLabel("Periodo").selectOption("weekly");
+    const [weeklyDownload] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Descargar Excel" }).click(),
+    ]);
+    expect(weeklyDownload.suggestedFilename()).toMatch(/nicabliss-reporte-semanal-\d{4}-\d{2}-\d{2}-a-\d{4}-\d{2}-\d{2}\.xlsx/);
+
+    await page.getByLabel("Periodo").selectOption("monthly");
+    await page.getByLabel("Mes a exportar").fill("2026-10");
+    const [monthlyDownload] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Descargar Excel" }).click(),
+    ]);
+    expect(monthlyDownload.suggestedFilename()).toBe("nicabliss-reporte-mensual-2026-10.xlsx");
   });
 
   test("Registrar entrada → Registrar salida", async () => {
