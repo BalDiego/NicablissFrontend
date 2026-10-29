@@ -144,6 +144,16 @@ test.describe.serial("flujos críticos del PMS", () => {
     await page.getByRole("button", { name: "Confirmar cierre" }).click();
     await confirmOperation();
     await expect(page.getByRole("heading", { name: "Caja cerrada" })).toBeVisible();
+
+    const closureDetailTrigger = page.getByRole("button", { name: /Ver detalle del cierre de caja #/ }).first();
+    await closureDetailTrigger.click();
+    const closureDetail = page.getByRole("dialog", { name: "Detalle del cierre" });
+    await expect(closureDetail.getByRole("heading", { name: "Datos del turno" })).toBeVisible();
+    await expect(closureDetail.getByRole("heading", { name: "Libro de movimientos" })).toBeVisible();
+    await expect(closureDetail.getByText("Pago manual E2E")).toBeVisible();
+    await closureDetail.getByRole("button", { name: "Cerrar detalle del cierre" }).click();
+    await expect(closureDetail).toHaveCount(0);
+    await expect(closureDetailTrigger).toBeFocused();
   });
 
   test("Consultar dashboard → Filtrar ingresos mensuales", async () => {
