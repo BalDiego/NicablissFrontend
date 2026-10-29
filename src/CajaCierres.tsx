@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { cashService } from "./services/cash.service";
 import { useFeedback } from "./hooks/useFeedback";
 import { useAuth } from "./hooks/useAuth";
+import { useAutoRefresh } from "./hooks/useAutoRefresh";
 import type {
   CashByMethodRow,
   CashByUserRow,
@@ -53,6 +54,8 @@ function CajaCierres() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const requestId = useRef(0);
+  const hasLoaded = useRef(false);
 
   const [mostrarApertura, setMostrarApertura] = useState(false);
   const [mostrarMovimiento, setMostrarMovimiento] = useState(false);
@@ -71,13 +74,15 @@ function CajaCierres() {
   const [movementIdempotencyKey, setMovementIdempotencyKey] = useState("");
 
   const cargarDatosCaja = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     try {
-      setLoading(true);
+      if (!hasLoaded.current) setLoading(true);
       setError(null);
       const [current, history] = await Promise.all([
         cashService.getCurrentSession(),
         cashService.getHistory(),
       ]);
+      if (currentRequest !== requestId.current) return;
       setSesion(current);
       setHistorial(history);
       if (current) {
@@ -90,6 +95,7 @@ function CajaCierres() {
           cashService.getByMethod(current.id, filtroUsuario || undefined),
           cashService.getByUser(current.id, filtroMetodo || undefined),
         ]);
+        if (currentRequest !== requestId.current) return;
         setConciliacion(reconciliationData);
         setPorMetodo(methodData.rows);
         setPorUsuario(userData.rows);
@@ -99,19 +105,18 @@ function CajaCierres() {
         setPorUsuario([]);
       }
     } catch (err: unknown) {
+      if (currentRequest !== requestId.current) return;
       const msg = err instanceof Error ? err.message : "Error al consultar el módulo de caja.";
       setError(msg);
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) {
+        hasLoaded.current = true;
+        setLoading(false);
+      }
     }
   }, [filtroMetodo, filtroUsuario]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      cargarDatosCaja();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [cargarDatosCaja]);
+  useAutoRefresh(cargarDatosCaja);
 
   const movimientos = sesion?.movimientos ?? [];
 

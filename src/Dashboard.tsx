@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { dashboardService } from "./services/dashboard.service";
+import { useAutoRefresh } from "./hooks/useAutoRefresh";
 import type { DailyDashboardReport, MetodoPago } from "./services/types";
 import { businessToday } from "./utils/businessDate";
 import "./App.css";
@@ -76,14 +77,18 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const requestId = useRef(0);
+  const loadedFilterKey = useRef("");
 
   const load = useCallback(async (force = false) => {
     const currentRequest = ++requestId.current;
-    setLoading(true);
+    const filterKey = `${date}|${method}`;
+    const hasCurrentReport = loadedFilterKey.current === filterKey;
+    if (!hasCurrentReport) setLoading(true);
     try {
       const next = await dashboardService.getDaily(date, method || undefined, undefined, { force });
       if (currentRequest !== requestId.current) return;
       setReport(next);
+      loadedFilterKey.current = filterKey;
       setError("");
     } catch (caught: unknown) {
       if (currentRequest !== requestId.current) return;
@@ -93,10 +98,7 @@ export default function Dashboard() {
     }
   }, [date, method]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => void load(), 80);
-    return () => window.clearTimeout(timer);
-  }, [load]);
+  useAutoRefresh(load);
 
   const visibleReport = report?.date === date && (report.filters.method || "") === method ? report : null;
   const maxCategory = useMemo(() => Math.max(1, ...(visibleReport?.byCategory.map((item) => item.amount) ?? [1])), [visibleReport]);
