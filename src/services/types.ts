@@ -145,6 +145,8 @@ export interface FoodOrder {
   estado: "Pendiente" | "En preparación" | "En camino" | "Entregado" | "Cancelado";
   fecha: string;
   customerId?: number;
+  reservationId?: number;
+  reservationCode?: string;
   stayId?: number;
   serviceConsumptionId?: number;
 }
@@ -186,6 +188,58 @@ export interface Stay {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StayPayment {
+  id: number;
+  paymentNumber: string;
+  amount: number;
+  paymentMethod: MetodoPago;
+  reference?: string;
+  kind: "PAYMENT" | "REVERSAL";
+  status: "POSTED" | "REVERSED";
+  paymentDate: string;
+  invoiceId?: number;
+  receivedByName: string;
+}
+
+export interface StayAccount {
+  stayId: number;
+  reservationId: number;
+  reservationCode: string;
+  reservationStatus: ReservationStatus;
+  customerId: number;
+  customerName: string;
+  customerDocument: string;
+  roomId: number;
+  habitacion: string;
+  checkInAt: string;
+  checkOutAt?: string;
+  status: StayStatus;
+  lodging: number;
+  services: number;
+  pendingServicesAmount: number;
+  total: number;
+  paid: number;
+  balance: number;
+  billableServiceCount: number;
+  pendingServiceCount: number;
+  payments: StayPayment[];
+}
+
+export interface CustomerHistorySummary {
+  stayCount: number;
+  activeStayCount: number;
+  totalCharged: number;
+  totalPaid: number;
+  outstandingBalance: number;
+}
+
+export interface CustomerHistory {
+  customer: Customer;
+  activeStay: StayAccount | null;
+  stays: StayAccount[];
+  summary: CustomerHistorySummary;
 }
 
 export type ServiceCategory =

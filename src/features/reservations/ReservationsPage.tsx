@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { reservationService } from "../../services/reservation.service";
 import type { Reservation, ReservationStatus } from "../../services/types";
 import "../features.css";
 
 export default function ReservationsPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => params.get("search") ?? "");
   const [status, setStatus] = useState<ReservationStatus | "">("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

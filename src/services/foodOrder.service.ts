@@ -1,6 +1,13 @@
 import { apiClient } from "./apiClient";
 import type { FoodOrder } from "./types";
 
+export interface FoodOrderPayload {
+  stayId?: number;
+  reservationId?: number;
+  productos: string;
+  total: number;
+}
+
 export const foodOrderService = {
   async getAll(search?: string): Promise<FoodOrder[]> {
     const query = search ? `?search=${encodeURIComponent(search)}` : "";
@@ -8,11 +15,7 @@ export const foodOrderService = {
     return res.data;
   },
 
-  async create(order: {
-    stayId: number;
-    productos: string;
-    total: number;
-  }): Promise<FoodOrder> {
+  async create(order: FoodOrderPayload): Promise<FoodOrder> {
     const res = await apiClient.post<{ success: boolean; data: FoodOrder }>("/food-orders", order);
     return res.data;
   },
