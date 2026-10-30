@@ -1,5 +1,5 @@
 import { apiClient, type ApiSuccess } from "./apiClient";
-import type { Customer } from "./types";
+import type { Customer, CustomerHistory } from "./types";
 
 export type CustomerPayload = Pick<Customer, "nombre" | "documento"> &
   Partial<Pick<Customer, "apellido" | "telefono" | "correo" | "direccion">>;
@@ -13,6 +13,11 @@ export const customerService = {
 
   async getById(id: number): Promise<Customer> {
     const response = await apiClient.get<ApiSuccess<Customer>>(`/customers/${id}`);
+    return response.data;
+  },
+
+  async getHistory(id: number): Promise<CustomerHistory> {
+    const response = await apiClient.get<ApiSuccess<CustomerHistory>>(`/customers/${id}/history`);
     return response.data;
   },
 

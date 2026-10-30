@@ -33,13 +33,13 @@ const reservation: Reservation = {
   updatedAt: "2026-10-24T00:00:00.000Z",
 };
 
-function renderModal() {
+function renderModal(maxAmount?: number) {
   const notify = vi.fn();
   const onClose = vi.fn();
   const onSaved = vi.fn();
   render(
     <FeedbackContext.Provider value={{ notify, confirm: vi.fn() }}>
-      <PaymentModal reservation={reservation} onClose={onClose} onSaved={onSaved} />
+      <PaymentModal reservation={reservation} maxAmount={maxAmount} onClose={onClose} onSaved={onSaved} />
     </FeedbackContext.Provider>
   );
   return { notify, onClose, onSaved };
@@ -78,5 +78,12 @@ describe("PaymentModal", () => {
     expect(onSaved).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Confirmar pago" })).toBeEnabled();
     expect(screen.getByLabelText("Monto (USD) *")).toHaveValue(100);
+  });
+
+  it("usa el saldo completo de la cuenta cuando la reserva ya está finalizada", () => {
+    renderModal(175);
+    expect(screen.getByText("Saldo: $175.00")).toBeInTheDocument();
+    expect(screen.getByLabelText("Monto (USD) *")).toHaveValue(175);
+    expect(screen.getByLabelText("Monto (USD) *")).toHaveAttribute("max", "175");
   });
 });

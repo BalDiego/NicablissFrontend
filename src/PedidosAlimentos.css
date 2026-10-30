@@ -204,6 +204,15 @@
   font-family: inherit;
 }
 
+.pedidos-form-note {
+  padding: 10px 12px;
+  border: 1px solid #cfe3d8;
+  border-radius: 8px;
+  background: #f4fbf6;
+  color: #37624f;
+  line-height: 1.45;
+}
+
 .pedidos-modal-actions {
   display: flex;
   justify-content: flex-end;

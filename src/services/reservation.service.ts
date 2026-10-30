@@ -6,6 +6,7 @@ import type {
   ReservationStatus,
   Room,
   Stay,
+  StayAccount,
 } from "./types";
 
 export interface ReservationPayload {
@@ -55,6 +56,11 @@ export const reservationService = {
     if (to) params.set("to", to);
     const query = params.size > 0 ? `?${params}` : "";
     const response = await apiClient.get<ApiSuccess<Room[]>>(`/rooms/availability${query}`);
+    return response.data;
+  },
+
+  async getAccount(reservationId: number): Promise<StayAccount> {
+    const response = await apiClient.get<ApiSuccess<StayAccount>>(`/reservations/${reservationId}/account`);
     return response.data;
   },
 

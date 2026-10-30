@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { foodOrderService } from "./services/foodOrder.service";
+import { reservationService } from "./services/reservation.service";
 import { stayService } from "./services/stay.service";
+import { useAuth } from "./hooks/useAuth";
 import { useFeedback } from "./hooks/useFeedback";
-import type { FoodOrder, Stay } from "./services/types";
+import type { FoodOrder, Reservation, Stay } from "./services/types";
 import "./PedidosAlimentos.css";
 
 type EstadoPedido =
@@ -12,18 +14,21 @@ type EstadoPedido =
   | "Entregado"
   | "Cancelado";
 
-const estados: EstadoPedido[] = [
-  "Pendiente",
-  "En preparación",
-  "En camino",
-  "Entregado",
-  "Cancelado",
-];
+const transiciones: Record<EstadoPedido, EstadoPedido[]> = {
+  Pendiente: ["En preparación", "En camino", "Entregado", "Cancelado"],
+  "En preparación": ["En camino", "Entregado", "Cancelado"],
+  "En camino": ["Entregado", "Cancelado"],
+  Entregado: [],
+  Cancelado: [],
+};
 
 function PedidosAlimentos() {
   const { notify } = useFeedback();
+  const { user } = useAuth();
+  const canUseReservations = user?.role !== "STAFF";
   const [pedidos, setPedidos] = useState<FoodOrder[]>([]);
   const [estancias, setEstancias] = useState<Stay[]>([]);
+  const [reservas, setReservas] = useState<Reservation[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +36,7 @@ function PedidosAlimentos() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
   const [nuevo, setNuevo] = useState({
-    stayId: "",
+    destino: "",
     productos: "",
     total: "",
   });
@@ -56,13 +61,26 @@ function PedidosAlimentos() {
     }
   }, []);
 
-  const cargarEstancias = useCallback(async () => {
-    try {
-      setEstancias(await stayService.getAll("Activa"));
-    } catch (err: unknown) {
-      notify(err instanceof Error ? err.message : "No se pudieron cargar las estancias activas", "error");
+  const cargarDestinos = useCallback(async () => {
+    const [estanciasResult, reservasResult] = await Promise.allSettled([
+      stayService.getAll("Activa"),
+      canUseReservations ? reservationService.getAll() : Promise.resolve([]),
+    ]);
+
+    if (estanciasResult.status === "fulfilled") {
+      setEstancias(estanciasResult.value);
+    } else {
+      setEstancias([]);
+      notify(estanciasResult.reason instanceof Error ? estanciasResult.reason.message : "No se pudieron cargar las estancias activas", "error");
     }
-  }, [notify]);
+
+    if (reservasResult.status === "fulfilled") {
+      setReservas(reservasResult.value.filter((reserva) => reserva.estado === "Confirmada"));
+    } else {
+      setReservas([]);
+      notify(reservasResult.reason instanceof Error ? reservasResult.reason.message : "No se pudieron cargar las reservas", "error");
+    }
+  }, [canUseReservations, notify]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -72,12 +90,12 @@ function PedidosAlimentos() {
   }, [busqueda, cargarPedidos]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void cargarEstancias(), 0);
+    const timer = window.setTimeout(() => void cargarDestinos(), 0);
     return () => window.clearTimeout(timer);
-  }, [cargarEstancias]);
+  }, [cargarDestinos]);
 
   const abrirFormulario = () => {
-    void cargarEstancias();
+    void cargarDestinos();
     setMostrarFormulario(true);
   };
 
@@ -89,27 +107,31 @@ function PedidosAlimentos() {
       notify("Ingresa un importe válido.", "error");
       return;
     }
-    if (!nuevo.stayId) {
-      notify("Selecciona una estancia activa.", "error");
+    if (!nuevo.destino) {
+      notify("Selecciona una estancia activa o una reserva.", "error");
       return;
     }
 
+    const [tipo, idTexto] = nuevo.destino.split(":");
+    const destinoId = Number(idTexto);
+    const payload = tipo === "reserva"
+      ? { reservationId: destinoId, productos: nuevo.productos.trim(), total }
+      : { stayId: destinoId, productos: nuevo.productos.trim(), total };
+
     try {
       setSubmitting(true);
-      await foodOrderService.create({
-        stayId: Number(nuevo.stayId),
-        productos: nuevo.productos.trim(),
-        total,
-      });
+      const pedido = await foodOrderService.create(payload);
 
       setNuevo({
-        stayId: "",
+        destino: "",
         productos: "",
         total: "",
       });
       setMostrarFormulario(false);
       await cargarPedidos(busqueda);
-      notify("Pedido registrado y agregado a la estancia");
+      notify(pedido.stayId
+        ? "Pedido registrado y agregado a la estancia"
+        : "Pedido reservado; se agregará a la cuenta cuando se registre el check-in");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Error al registrar el pedido.";
       notify(msg, "error");
@@ -260,7 +282,11 @@ function PedidosAlimentos() {
                   </td>
                   <td>
                     <strong>{pedido.huesped}</strong>
-                    <small>{pedido.habitacion}</small>
+                    <small>
+                      {pedido.habitacion}
+                      {pedido.reservationCode ? ` · ${pedido.reservationCode}` : ""}
+                      {pedido.reservationId && !pedido.stayId ? " · pendiente de check-in" : ""}
+                    </small>
                   </td>
                   <td>{pedido.productos}</td>
                   <td>{moneda(pedido.total)}</td>
@@ -275,7 +301,7 @@ function PedidosAlimentos() {
                         )
                       }
                     >
-                      {estados.map((estado) => (
+                      {[pedido.estado, ...transiciones[pedido.estado]].map((estado) => (
                         <option key={estado} value={estado}>
                           {estado}
                         </option>
@@ -311,14 +337,14 @@ function PedidosAlimentos() {
       </section>
 
       <p className="pedidos-notice">
-        Pedidos sincronizados en tiempo real con Nicabliss API. Al presionar Enviar por WhatsApp, se abre la conversación con los datos preformateados.
+        Los pedidos de estancias activas se cargan de inmediato. Los pedidos de reservas sin check-in quedan preparados y se cargan al registrar la llegada.
       </p>
 
       {mostrarFormulario && (
         <div className="pedidos-overlay">
-          <div className="pedidos-modal">
+          <div className="pedidos-modal" role="dialog" aria-modal="true" aria-labelledby="pedido-modal-title">
             <div className="pedidos-modal-heading">
-              <h2>Registrar nuevo pedido</h2>
+              <h2 id="pedido-modal-title">Registrar nuevo pedido</h2>
               <button
                 type="button"
                 onClick={() => setMostrarFormulario(false)}
@@ -328,25 +354,47 @@ function PedidosAlimentos() {
             </div>
 
             <form onSubmit={registrarPedido}>
-              <label>Estancia activa</label>
+              <label htmlFor="pedido-destino">Estancia activa o reserva</label>
               <select
+                id="pedido-destino"
                 required
-                value={nuevo.stayId}
+                value={nuevo.destino}
                 onChange={(e) =>
-                  setNuevo({ ...nuevo, stayId: e.target.value })
+                  setNuevo({ ...nuevo, destino: e.target.value })
                 }
               >
                 <option value="">Seleccionar huésped y habitación</option>
-                {estancias.map((estancia) => (
-                  <option key={estancia.id} value={estancia.id}>
-                    {estancia.customerName} · {estancia.habitacion} · {estancia.reservationCode}
-                  </option>
-                ))}
+                {estancias.length > 0 && (
+                  <optgroup label="Estancias activas">
+                    {estancias.map((estancia) => (
+                      <option key={`stay-${estancia.id}`} value={`estancia:${estancia.id}`}>
+                        {estancia.customerName} · {estancia.habitacion} · {estancia.reservationCode}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {reservas.length > 0 && (
+                  <optgroup label="Reservas sin check-in">
+                    {reservas.map((reserva) => (
+                      <option key={`reservation-${reserva.id}`} value={`reserva:${reserva.id}`}>
+                        {reserva.customerName} · {reserva.habitacion} · {reserva.codigoReserva} · {reserva.fechaEntrada}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
-              {estancias.length === 0 && <small>No hay estancias activas. Registra un check-in antes de crear el pedido.</small>}
+              {estancias.length === 0 && reservas.length === 0 && (
+                <small>No hay estancias activas ni reservas pendientes. Registra una reserva antes de crear el pedido.</small>
+              )}
+              {nuevo.destino.startsWith("reserva:") && (
+                <small className="pedidos-form-note">
+                  Este pedido quedará vinculado a la reserva y se agregará a la cuenta cuando el huésped haga check-in.
+                </small>
+              )}
 
-              <label>Productos solicitados</label>
+              <label htmlFor="pedido-productos">Productos solicitados</label>
               <textarea
+                id="pedido-productos"
                 required
                 rows={3}
                 placeholder="Ej. 2 desayunos y 1 café"
@@ -356,8 +404,9 @@ function PedidosAlimentos() {
                 }
               />
 
-              <label>Total del pedido (USD)</label>
+              <label htmlFor="pedido-total">Total del pedido (USD)</label>
               <input
+                id="pedido-total"
                 required
                 type="number"
                 min="0.01"

@@ -58,7 +58,7 @@ test.describe.serial("flujos críticos del PMS", () => {
     await customerDialog.getByRole("button", { name: "Guardar cliente" }).click();
     await expect(page.getByRole("heading", { name: "Cliente E2E Playwright" })).toBeVisible();
 
-    await page.getByRole("link", { name: "Crear reserva" }).click();
+    await page.getByRole("link", { name: "Nueva reserva" }).click();
     await page.getByLabel("Total de reserva (USD) *").fill("200");
     await page.getByLabel("Entrada *").fill("2035-06-10");
     await page.getByLabel("Salida *").fill("2035-06-12");
@@ -114,6 +114,90 @@ test.describe.serial("flujos críticos del PMS", () => {
     await invoicePayment.getByRole("button", { name: "Confirmar pago" }).click();
     await expect(page.locator(".invoice-preview-header")).toContainText("Pagada");
     await expect(page.locator(".invoice-balance")).toContainText("$0.00");
+  });
+
+  test("Reserva → Pedido anticipado → Check-in → Entrega → Check-out con saldo → Cobro posterior", async () => {
+    const customerResponse = await api("/customers", {
+      method: "POST",
+      data: {
+        nombre: "Cliente",
+        apellido: "PostCheckout E2E",
+        documento: "E2E-POSTCHECKOUT-001",
+      },
+    });
+    const customerId = customerResponse.data.id;
+
+    const availability = await api("/rooms/availability?from=2036-07-10&to=2036-07-12");
+    const activeStays = await api("/stays?status=Activa");
+    const occupiedRoomIds = new Set(activeStays.data.map((stay: { roomId: number }) => stay.roomId));
+    const room = availability.data.find((item: { available: boolean; id: number }) =>
+      item.available && !occupiedRoomIds.has(item.id));
+    expect(room).toBeTruthy();
+
+    const reservationResponse = await api("/reservations", {
+      method: "POST",
+      data: {
+        customerId,
+        roomId: room.id,
+        fechaEntrada: "2036-07-10",
+        fechaSalida: "2036-07-12",
+        totalReserva: 120,
+        depositType: "FIXED",
+        depositValue: 0,
+      },
+    });
+    const reservationId = reservationResponse.data.id;
+    await api(`/reservations/${reservationId}/status`, {
+      method: "PATCH",
+      data: { estado: "Confirmada" },
+    });
+
+    await page.goto("/food-orders");
+    await expect(page.getByRole("heading", { name: "Pedidos de alimentos" })).toBeVisible();
+    await page.getByRole("button", { name: "+ Nuevo pedido" }).click();
+    const orderDialog = page.getByRole("dialog");
+    await orderDialog.getByLabel("Estancia activa o reserva").selectOption(`reserva:${reservationId}`);
+    await orderDialog.getByLabel("Productos solicitados").fill("Cena E2E post-checkout");
+    await orderDialog.getByLabel("Total del pedido (USD)").fill("30");
+    await orderDialog.getByRole("button", { name: "Guardar pedido" }).click();
+    const orderRow = page.getByRole("row").filter({ hasText: "Cena E2E post-checkout" });
+    await expect(orderRow).toBeVisible();
+    await expect(orderRow).toContainText("pendiente de check-in");
+
+    await page.goto(`/reservations/${reservationId}`);
+    await page.getByRole("button", { name: "Registrar check-in" }).click();
+    await confirmOperation();
+    await expect(page).toHaveURL(/\/stays\/\d+$/);
+    const stayUrl = page.url();
+
+    await page.goto("/food-orders");
+    await page.getByRole("row").filter({ hasText: "Cena E2E post-checkout" })
+      .getByRole("combobox").selectOption("Entregado");
+    await expect(page.getByRole("row").filter({ hasText: "Cena E2E post-checkout" })
+      .getByRole("combobox")).toHaveValue("Entregado");
+
+    await page.goto(stayUrl);
+    await expect(page.getByText("$150.00").first()).toBeVisible();
+    await page.getByRole("button", { name: "Registrar check-out" }).click();
+    await confirmOperation();
+    await expect(page.getByText("Finalizada", { exact: true })).toBeVisible();
+
+    await page.goto(`/reservations/${reservationId}`);
+    await page.getByRole("button", { name: "Registrar pago" }).click();
+    const paymentDialog = page.getByRole("dialog");
+    await expect(paymentDialog.getByText("Saldo: $150.00")).toBeVisible();
+    await paymentDialog.getByLabel("Monto (USD) *").fill("50");
+    await paymentDialog.getByLabel("Método *").selectOption("Transferencia");
+    await paymentDialog.getByLabel("Referencia *").fill("E2E-POSTCHECKOUT-TRX");
+    await paymentDialog.getByRole("button", { name: "Confirmar pago" }).click();
+    await expect(page.getByText("Saldo de cuenta")).toBeVisible();
+    await expect(page.getByText("$100.00").first()).toBeVisible();
+
+    await page.goto(`/customers/${customerId}`);
+    await expect(page.getByRole("heading", { name: "Cliente PostCheckout E2E" })).toBeVisible();
+    await expect(page.getByText("Pagos por estancia")).toBeVisible();
+    await expect(page.getByText("Transferencia")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Cobrar saldo" })).toBeVisible();
   });
 
   test("Abrir caja → Recibir pago → Cerrar caja", async () => {

@@ -6,6 +6,7 @@ import { laundryService } from "./laundry.service";
 import { reservationService } from "./reservation.service";
 import { serviceService } from "./service.service";
 import { stayService } from "./stay.service";
+import { customerService } from "./customer.service";
 import { invoiceService } from "./invoice.service";
 import { cashService } from "./cash.service";
 import { reportService } from "./report.service";
@@ -59,6 +60,72 @@ describe("Phase 2 API contracts", () => {
 
     await expect(stayService.getAll("Activa")).resolves.toEqual([stay]);
     await expect(reservationService.checkIn(21)).resolves.toEqual(stay);
+  });
+
+  it("loads a stay account, customer stay history, and pre-check-in food orders", async () => {
+    const account = {
+      stayId: 9,
+      reservationId: 21,
+      reservationCode: "RES-2028-000021",
+      reservationStatus: "CheckIn",
+      customerId: 7,
+      customerName: "Cliente Prueba",
+      customerDocument: "DOC-7",
+      roomId: 3,
+      habitacion: "Habitación 03",
+      checkInAt: "2028-03-10T14:00:00.000Z",
+      status: "Activa",
+      lodging: 200,
+      services: 25,
+      pendingServicesAmount: 0,
+      total: 225,
+      paid: 50,
+      balance: 175,
+      billableServiceCount: 1,
+      pendingServiceCount: 0,
+      payments: [{
+        id: 70,
+        paymentNumber: "PAY-2028-0000070",
+        amount: 50,
+        paymentMethod: "Efectivo",
+        kind: "PAYMENT",
+        status: "POSTED",
+        paymentDate: "2028-03-10T15:00:00.000Z",
+        receivedByName: "Administrador Nicabliss",
+      }],
+    };
+    server.use(
+      http.get(`${apiUrl}/stays/9/account`, () => HttpResponse.json({ success: true, data: account })),
+      http.get(`${apiUrl}/reservations/21/account`, () => HttpResponse.json({ success: true, data: account })),
+      http.get(`${apiUrl}/customers/7/history`, () => HttpResponse.json({
+        success: true,
+        data: {
+          customer: { id: 7, nombre: "Cliente", documento: "DOC-7" },
+          activeStay: account,
+          stays: [account],
+          summary: { stayCount: 1, activeStayCount: 1, totalCharged: 225, totalPaid: 50, outstandingBalance: 175 },
+        },
+      })),
+      http.post(`${apiUrl}/food-orders`, async ({ request }) => {
+        const body = await request.json() as Record<string, unknown>;
+        expect(body).toEqual({ reservationId: 21, productos: "Desayuno", total: 8 });
+        return HttpResponse.json({
+          success: true,
+          data: { id: 32, reservationId: 21, reservationCode: "RES-2028-000021", ...body, estado: "Pendiente" },
+        }, { status: 201 });
+      })
+    );
+
+    expect((await stayService.getAccount(9)).balance).toBe(175);
+    const reservationAccount = await reservationService.getAccount(21);
+    expect(reservationAccount.payments[0].amount).toBe(50);
+    const history = await customerService.getHistory(7);
+    expect(history.activeStay?.stayId).toBe(9);
+    expect(history.activeStay?.payments).toHaveLength(1);
+    expect(history.summary.outstandingBalance).toBe(175);
+    const preorder = await foodOrderService.create({ reservationId: 21, productos: "Desayuno", total: 8 });
+    expect(preorder.reservationId).toBe(21);
+    expect(preorder.stayId).toBeUndefined();
   });
 
   it("sends stayId instead of free-form guest data for food and laundry", async () => {

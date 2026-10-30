@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useFeedback } from "../../hooks/useFeedback";
 import { serviceService } from "../../services/service.service";
 import { stayService } from "../../services/stay.service";
 import { invoiceService } from "../../services/invoice.service";
-import type { ServiceConsumption, Stay } from "../../services/types";
+import type { ServiceConsumption, Stay, StayAccount } from "../../services/types";
+import StayAccountSummary from "./StayAccountSummary";
 import "../features.css";
 
 export default function StayDetailPage() {
@@ -14,6 +15,7 @@ export default function StayDetailPage() {
   const { user } = useAuth();
   const { notify, confirm } = useFeedback();
   const [stay, setStay] = useState<Stay | null>(null);
+  const [account, setAccount] = useState<StayAccount | null>(null);
   const [consumptions, setConsumptions] = useState<ServiceConsumption[]>([]);
   const [error, setError] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
@@ -21,11 +23,13 @@ export default function StayDetailPage() {
 
   const load = useCallback(async () => {
     try {
-      const [stayData, consumptionData] = await Promise.all([
+      const [stayData, accountData, consumptionData] = await Promise.all([
         stayService.getById(id),
+        stayService.getAccount(id),
         serviceService.getByStay(id),
       ]);
       setStay(stayData);
+      setAccount(accountData);
       setConsumptions(consumptionData);
       setError("");
     } catch (caught: unknown) {
@@ -38,14 +42,15 @@ export default function StayDetailPage() {
     return () => window.clearTimeout(timer);
   }, [load]);
 
-  const totalServices = useMemo(
-    () => consumptions.filter((item) => item.estado !== "Cancelado").reduce((sum, item) => sum + item.subtotal, 0),
-    [consumptions]
-  );
-
   const checkOut = async () => {
     if (checkingOut) return;
-    if (!(await confirm("¿Confirmas el check-out? La estancia y su reserva quedarán finalizadas."))) return;
+    const pendingMessage = account && account.pendingServiceCount > 0
+      ? `\n\nHay ${account.pendingServiceCount} servicio(s) pendiente(s) que deben entregarse o cancelarse.`
+      : "";
+    const balanceMessage = account && account.balance > 0
+      ? `\n\nLa cuenta quedará con un saldo pendiente de $${account.balance.toFixed(2)}.`
+      : "";
+    if (!(await confirm(`¿Confirmas el check-out? La estancia y su reserva quedarán finalizadas.${pendingMessage}${balanceMessage}`))) return;
     setCheckingOut(true);
     try {
       await stayService.checkOut(id);
@@ -73,18 +78,20 @@ export default function StayDetailPage() {
   };
 
   if (error) return <div className="feature-error">{error}<button onClick={() => void load()}>Reintentar</button></div>;
-  if (!stay) return <p className="feature-state">Cargando estancia...</p>;
+  if (!stay || !account) return <p className="feature-state">Cargando estancia...</p>;
 
-  const canCheckOut = user?.role !== "STAFF" && stay.estado === "Activa";
+  const hasPendingServices = account.pendingServiceCount > 0;
+  const canCheckOut = user?.role !== "STAFF" && stay.estado === "Activa" && !hasPendingServices;
 
   return (
     <section className="feature-page">
       <header className="feature-heading">
         <div><span>ESTANCIA / #{stay.id}</span><h1>{stay.customerName}</h1><p>{stay.habitacion} · Reserva {stay.reservationCode}</p></div>
         <div className="feature-actions">
+          <Link className="feature-link" to={`/customers/${stay.customerId}`}>Ver historial del cliente</Link>
           <Link className="feature-primary" to={`/stays/${stay.id}/services`}>Gestionar servicios</Link>
           {stay.estado !== "Cancelada" && <button type="button" onClick={() => void createInvoice()} disabled={creatingInvoice || checkingOut}>{creatingInvoice ? "Preparando..." : "Ver cuenta / facturar"}</button>}
-          {canCheckOut && <button type="button" onClick={() => void checkOut()} disabled={checkingOut || creatingInvoice}>{checkingOut ? "Finalizando..." : "Registrar check-out"}</button>}
+          {user?.role !== "STAFF" && stay.estado === "Activa" && <button type="button" onClick={() => void checkOut()} disabled={!canCheckOut || checkingOut || creatingInvoice} title={hasPendingServices ? "Resuelve los servicios pendientes antes de cerrar" : undefined}>{checkingOut ? "Finalizando..." : hasPendingServices ? "Servicios pendientes" : "Registrar check-out"}</button>}
         </div>
       </header>
 
@@ -92,16 +99,20 @@ export default function StayDetailPage() {
         <article><span>Estado</span><strong>{stay.estado}</strong></article>
         <article><span>Check-in</span><strong>{new Date(stay.checkInAt).toLocaleString("es-NI")}</strong></article>
         <article><span>Servicios registrados</span><strong>{consumptions.length}</strong></article>
-        <article><span>Total servicios</span><strong>${totalServices.toFixed(2)}</strong></article>
+        <article><span>Total de la cuenta</span><strong>${account.total.toFixed(2)}</strong></article>
+        <article><span>Pagado</span><strong className={account.paid > 0 ? "positive" : ""}>${account.paid.toFixed(2)}</strong></article>
+        <article><span>Saldo</span><strong className={account.balance > 0 ? "negative" : "positive"}>${account.balance.toFixed(2)}</strong></article>
         <article><span>Documento</span><strong>{stay.customerDocument}</strong></article>
         <article><span>Check-out</span><strong>{stay.checkOutAt ? new Date(stay.checkOutAt).toLocaleString("es-NI") : "Pendiente"}</strong></article>
       </div>
+
+      <StayAccountSummary account={account} />
 
       <div className="feature-section-title"><h2>Últimos consumos</h2><p>Incluye cargos directos, alimentos y lavandería.</p></div>
       <div className="feature-panel">
         <table className="feature-table">
           <thead><tr><th>Servicio</th><th>Origen</th><th>Cantidad</th><th>Subtotal</th><th>Estado</th></tr></thead>
-          <tbody>{consumptions.slice(0, 8).map((item) => <tr key={item.id}><td><strong>{item.serviceName}</strong><small>{item.categoria}</small></td><td>{item.sourceType === "DIRECT" ? "Directo" : item.sourceType === "FOOD_ORDER" ? "Alimentos" : "Lavandería"}</td><td>{item.cantidad}</td><td>${item.subtotal.toFixed(2)}</td><td>{item.estado}</td></tr>)}</tbody>
+          <tbody>{consumptions.slice(0, 8).map((item) => <tr key={item.id}><td><strong>{item.serviceName}</strong><small>{item.observaciones || item.categoria}</small></td><td>{item.sourceType === "DIRECT" ? "Directo" : item.sourceType === "FOOD_ORDER" ? "Alimentos" : "Lavandería"}</td><td>{item.cantidad}</td><td>${item.subtotal.toFixed(2)}</td><td>{item.estado}</td></tr>)}</tbody>
         </table>
         {consumptions.length === 0 && <p className="feature-state">No hay servicios registrados.</p>}
       </div>
