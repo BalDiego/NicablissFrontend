@@ -21,6 +21,7 @@ const navItems: NavItem[] = [
   { path: "/attendance", label: "Mi asistencia", icon: "clock", group: "Operación", roles: allRoles },
   { path: "/customers", label: "Clientes", icon: "users", group: "Operación", roles: managementRoles },
   { path: "/reservations", label: "Reservas", icon: "calendar", group: "Operación", roles: managementRoles },
+  { path: "/rooms", label: "Habitaciones", icon: "bed", group: "Operación", roles: managementRoles },
   { path: "/stays", label: "Estancias", icon: "bed", group: "Operación", roles: allRoles },
   { path: "/food-orders", label: "Alimentos", icon: "utensils", group: "Operación", roles: allRoles },
   { path: "/laundry", label: "Lavandería", icon: "laundry", group: "Operación", roles: allRoles },

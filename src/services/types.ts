@@ -38,8 +38,13 @@ export interface Room {
   id: number;
   code: string;
   name: string;
+  category?: string;
+  description?: string;
+  pricePerNight: number;
   active: boolean;
   available: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Reservation {
@@ -50,8 +55,12 @@ export interface Reservation {
   customerDocument: string;
   roomId: number;
   habitacion: string;
+  roomCategory?: string;
   fechaEntrada: string;
   fechaSalida: string;
+  nights: number;
+  roomPricePerNight: number;
+  lodgingTotal: number;
   totalReserva: number;
   depositType: "PERCENTAGE" | "FIXED";
   depositValue: number;
@@ -59,6 +68,8 @@ export interface Reservation {
   abonado: number;
   saldo: number;
   estado: ReservationStatus;
+  checkInAt?: string;
+  checkOutAt?: string;
   observaciones?: string;
   createdBy: string;
   createdAt: string;
@@ -225,6 +236,46 @@ export interface StayAccount {
   billableServiceCount: number;
   pendingServiceCount: number;
   payments: StayPayment[];
+}
+
+export interface ReservationAccountInvoice {
+  id: number;
+  invoiceNumber: string;
+  status: InvoiceStatus;
+  total: number;
+  paidAmount: number;
+  balance: number;
+}
+
+export interface ReservationAccount {
+  stayId?: number;
+  reservationId: number;
+  reservationCode: string;
+  reservationStatus: ReservationStatus;
+  customerId: number;
+  customerName: string;
+  customerDocument: string;
+  roomId: number;
+  habitacion: string;
+  roomCategory?: string;
+  fechaEntrada: string;
+  fechaSalida: string;
+  nights: number;
+  roomPricePerNight: number;
+  checkInAt?: string;
+  checkOutAt?: string;
+  status: StayStatus | ReservationStatus;
+  lodging: number;
+  services: number;
+  pendingServicesAmount: number;
+  total: number;
+  paid: number;
+  balance: number;
+  billableServiceCount: number;
+  pendingServiceCount: number;
+  consumptions: ServiceConsumption[];
+  payments: StayPayment[];
+  invoice?: ReservationAccountInvoice;
 }
 
 export interface CustomerHistorySummary {
