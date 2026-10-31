@@ -28,6 +28,7 @@ const CustomerDetailPage = lazy(() => import("./features/customers/CustomerDetai
 const ReservationsPage = lazy(() => import("./features/reservations/ReservationsPage"));
 const ReservationForm = lazy(() => import("./features/reservations/ReservationForm"));
 const ReservationDetailPage = lazy(() => import("./features/reservations/ReservationDetailPage"));
+const RoomsPage = lazy(() => import("./features/rooms/RoomsPage"));
 const StaysPage = lazy(() => import("./features/stays/StaysPage"));
 const StayDetailPage = lazy(() => import("./features/stays/StayDetailPage"));
 const StayServicesPage = lazy(() => import("./features/services/StayServicesPage"));
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="reservations" element={<LazyRoute><ReservationsPage /></LazyRoute>} />
             <Route path="reservations/new" element={<LazyRoute><ReservationForm /></LazyRoute>} />
             <Route path="reservations/:id" element={<LazyRoute><ReservationDetailPage /></LazyRoute>} />
+            <Route path="rooms" element={<LazyRoute><RoomsPage /></LazyRoute>} />
             <Route path="billing" element={<Navigate to="/invoices" replace />} />
             <Route path="invoices" element={<LazyRoute><InvoicesPage /></LazyRoute>} />
             <Route path="invoices/:id" element={<LazyRoute><InvoiceDetailPage /></LazyRoute>} />

@@ -49,6 +49,11 @@ test.describe.serial("flujos críticos del PMS", () => {
       data: { fondoInicial: 100 },
     });
 
+    const roomResponse = await api("/rooms/availability?from=2035-06-10&to=2035-06-12");
+    const room = roomResponse.data.find((candidate: { available: boolean }) => candidate.available);
+    expect(room, "Debe existir una habitación disponible para el flujo E2E").toBeTruthy();
+    await api(`/rooms/${room.id}`, { method: "PUT", data: { pricePerNight: 100 } });
+
     await page.goto("/customers");
     await page.getByRole("button", { name: "+ Nuevo cliente" }).click();
     const customerDialog = page.getByRole("dialog");
@@ -59,22 +64,18 @@ test.describe.serial("flujos críticos del PMS", () => {
     await expect(page.getByRole("heading", { name: "Cliente E2E Playwright" })).toBeVisible();
 
     await page.getByRole("link", { name: "Nueva reserva" }).click();
-    await page.getByLabel("Total de reserva (USD) *").fill("200");
     await page.getByLabel("Entrada *").fill("2035-06-10");
     await page.getByLabel("Salida *").fill("2035-06-12");
-    await expect(page.getByLabel("Habitación disponible *").locator("option")).not.toHaveCount(1);
-    await page.getByLabel("Habitación disponible *").selectOption({ index: 1 });
+    await page.getByLabel("Habitación disponible *").selectOption(String(room.id));
+    await expect(page.getByLabel("Total de hospedaje calculado (USD) *")).toHaveValue("200.00");
     await expect(page.getByText("Anticipo estimado: $100.00")).toBeVisible();
+    await page.getByLabel("Registrar pago ahora (opcional)").check();
+    await page.getByLabel("Método de pago *").selectOption("Transferencia");
+    await page.getByLabel("Referencia *").fill("E2E-ANTICIPO-001");
+    await expect(page.getByText("Saldo pendiente después del pago: $100.00")).toBeVisible();
     await page.getByRole("button", { name: "Crear reserva" }).click();
     await expect(page.getByText("Anticipo requerido")).toBeVisible();
-    await expect(page.getByText("Pendiente", { exact: true })).toBeVisible();
-
-    await page.getByRole("button", { name: "Registrar pago" }).click();
-    const paymentDialog = page.getByRole("dialog");
-    await paymentDialog.getByLabel("Monto (USD) *").fill("100");
-    await paymentDialog.getByLabel("Método *").selectOption("Transferencia");
-    await paymentDialog.getByLabel("Referencia *").fill("E2E-ANTICIPO-001");
-    await paymentDialog.getByRole("button", { name: "Confirmar pago" }).click();
+    await expect(page.getByText("Confirmada", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Registrar check-in" })).toBeVisible();
 
     await page.getByRole("button", { name: "Registrar check-in" }).click();
@@ -311,5 +312,65 @@ test.describe.serial("flujos críticos del PMS", () => {
     await expect(page.getByText("Saldo histórico")).toBeVisible();
     await page.getByRole("button", { name: /Revisiones/ }).click();
     await expect(page.getByText("No hay revisiones pendientes.")).toBeVisible();
+  });
+
+  test("Habitación con precio → Reserva con cliente nuevo → Confirmar → Check-in → Consumo → Check-out con factura", async () => {
+    await page.goto("/rooms");
+    await expect(page.getByRole("heading", { name: "Habitaciones" })).toBeVisible();
+    await page.getByRole("button", { name: "+ Nueva habitación" }).click();
+    const roomDialog = page.getByRole("dialog", { name: "Habitación" });
+    await roomDialog.getByLabel("Código *").fill("E2E-PMS-01");
+    await roomDialog.getByLabel("Nombre *").fill("Habitación E2E PMS");
+    await roomDialog.getByLabel("Categoría *").fill("Suite");
+    await roomDialog.getByLabel("Precio por noche (USD) *").fill("50");
+    await roomDialog.getByLabel("Descripción").fill("Habitación creada por la prueba E2E");
+    await roomDialog.getByRole("button", { name: "Guardar habitación" }).click();
+    const roomRow = page.getByRole("row").filter({ hasText: "Habitación E2E PMS" });
+    await expect(roomRow).toBeVisible();
+    await expect(roomRow).toContainText("$50.00");
+    await expect(roomRow).toContainText("Suite");
+
+    await page.goto("/reservations/new");
+    await page.getByRole("button", { name: "Registrar nuevo cliente" }).click();
+    await page.getByLabel("Nombre del huésped *").fill("Huésped E2E PMS");
+    await page.getByLabel("Documento *").fill("E2E-PMS-DOC-001");
+    await page.getByLabel("Entrada *").fill("2037-01-10");
+    await page.getByLabel("Salida *").fill("2037-01-12");
+    await expect(page.getByLabel("Habitación disponible *").locator("option")).not.toHaveCount(1);
+    await page.getByLabel("Habitación disponible *").selectOption({ label: "Habitación E2E PMS · $50.00/noche" });
+    await expect(page.getByLabel("Total de hospedaje calculado (USD) *")).toHaveValue("100.00");
+    await page.getByLabel("Tipo de anticipo").selectOption("FIXED");
+    await page.getByLabel("Monto de anticipo *").fill("0");
+    await page.getByRole("button", { name: "Crear reserva" }).click();
+
+    await expect(page.getByRole("heading", { name: "Huésped E2E PMS" })).toBeVisible();
+    await expect(page.getByText("Pendiente", { exact: true })).toBeVisible();
+    const reservationPath = new URL(page.url()).pathname;
+
+    await page.getByRole("button", { name: "Confirmar reserva" }).click();
+    await expect(page.getByRole("button", { name: "Registrar check-in" })).toBeVisible();
+    await page.getByRole("button", { name: "Registrar check-in" }).click();
+    await confirmOperation();
+    await expect(page.getByText("Activa", { exact: true })).toBeVisible();
+
+    await page.goto(reservationPath);
+    await expect(page.getByRole("heading", { name: "Cuenta de la reserva" })).toBeVisible();
+    await page.getByRole("button", { name: "+ Agregar consumo" }).click();
+    await page.getByLabel("Servicio *").selectOption("1");
+    await page.getByLabel("Cantidad *").fill("2");
+    await page.getByLabel("Precio unitario especial (opcional)").fill("12.50");
+    await page.getByRole("button", { name: "Agregar consumo" }).click();
+
+    const consumptionRow = page.getByRole("row").filter({ hasText: "Pedido de alimentos" });
+    await expect(consumptionRow).toBeVisible();
+    await expect(consumptionRow).toContainText("$25.00");
+    await consumptionRow.getByRole("combobox").selectOption("Entregado");
+    await expect(consumptionRow.getByRole("combobox")).toHaveValue("Entregado");
+    await expect(page.getByText("$125.00").first()).toBeVisible();
+
+    await page.getByRole("button", { name: "Registrar check-out y facturar" }).click();
+    await confirmOperation();
+    await expect(page.getByText(/FACTURA \/ INV-/)).toBeVisible();
+    await expect(page.getByText("COMPROBANTE INTERNO · NO ES FACTURA FISCAL")).toBeVisible();
   });
 });

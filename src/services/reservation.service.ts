@@ -3,21 +3,53 @@ import type {
   Payment,
   PaymentReceipt,
   Reservation,
+  ReservationAccount,
   ReservationStatus,
   Room,
+  ServiceConsumption,
   Stay,
-  StayAccount,
 } from "./types";
 
+export interface ReservationCustomerPayload {
+  nombre: string;
+  apellido?: string;
+  documento: string;
+  telefono?: string;
+  correo?: string;
+  direccion?: string;
+}
+
 export interface ReservationPayload {
-  customerId: number;
+  customerId?: number;
+  customer?: ReservationCustomerPayload;
   roomId: number;
   fechaEntrada: string;
   fechaSalida: string;
-  totalReserva: number;
+  totalReserva?: number;
   depositType: "PERCENTAGE" | "FIXED";
-  depositValue: number;
+  depositValue: number | string;
   observaciones?: string;
+}
+
+export interface ConsumptionPayload {
+  serviceId: number;
+  cantidad: number;
+  precioUnitario?: number;
+  observaciones?: string;
+}
+
+export interface ReservationCheckoutResult {
+  reservationId: number;
+  stay: Stay;
+  invoice: {
+    id: number;
+    invoiceNumber: string;
+    status: string;
+    total: number;
+    paidAmount: number;
+    balance: number;
+  };
+  account: ReservationAccount;
 }
 
 export const reservationService = {
@@ -50,6 +82,11 @@ export const reservationService = {
     return response.data;
   },
 
+  async checkout(id: number): Promise<ReservationCheckoutResult> {
+    const response = await apiClient.post<ApiSuccess<ReservationCheckoutResult>>(`/reservations/${id}/checkout`);
+    return response.data;
+  },
+
   async getRooms(from?: string, to?: string): Promise<Room[]> {
     const params = new URLSearchParams();
     if (from) params.set("from", from);
@@ -59,8 +96,21 @@ export const reservationService = {
     return response.data;
   },
 
-  async getAccount(reservationId: number): Promise<StayAccount> {
-    const response = await apiClient.get<ApiSuccess<StayAccount>>(`/reservations/${reservationId}/account`);
+  async getAccount(reservationId: number): Promise<ReservationAccount> {
+    const response = await apiClient.get<ApiSuccess<ReservationAccount>>(`/reservations/${reservationId}/account`);
+    return response.data;
+  },
+
+  async getConsumptions(reservationId: number): Promise<ServiceConsumption[]> {
+    const response = await apiClient.get<ApiSuccess<ServiceConsumption[]>>(`/reservations/${reservationId}/consumptions`);
+    return response.data;
+  },
+
+  async addConsumption(reservationId: number, payload: ConsumptionPayload): Promise<ServiceConsumption> {
+    const response = await apiClient.post<ApiSuccess<ServiceConsumption>>(
+      `/reservations/${reservationId}/consumptions`,
+      payload
+    );
     return response.data;
   },
 

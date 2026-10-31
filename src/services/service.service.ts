@@ -22,6 +22,12 @@ export interface ConsumptionPayload {
   observaciones?: string;
 }
 
+export interface UpdateConsumptionPayload {
+  cantidad?: number;
+  precioUnitario?: number;
+  observaciones?: string;
+}
+
 export const serviceService = {
   async getCatalog(includeInactive = false): Promise<ServiceCatalog[]> {
     const query = includeInactive ? "?includeInactive=true" : "";
@@ -53,6 +59,14 @@ export const serviceService = {
     const response = await apiClient.patch<ApiSuccess<ServiceConsumption>>(
       `/service-consumptions/${id}/status`,
       { estado }
+    );
+    return response.data;
+  },
+
+  async updateConsumption(id: number, payload: UpdateConsumptionPayload): Promise<ServiceConsumption> {
+    const response = await apiClient.put<ApiSuccess<ServiceConsumption>>(
+      `/service-consumptions/${id}`,
+      payload
     );
     return response.data;
   },
