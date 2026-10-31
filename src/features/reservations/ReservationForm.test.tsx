@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { FeedbackContext } from "../../contexts/feedback-context";
 import { reservationService } from "../../services/reservation.service";
 import { customerService } from "../../services/customer.service";
@@ -12,6 +12,9 @@ vi.mock("../../services/reservation.service", () => ({
   reservationService: {
     create: vi.fn(),
     createPayment: vi.fn(),
+    getById: vi.fn(),
+    updateStatus: vi.fn(),
+    checkIn: vi.fn(),
     getRooms: vi.fn(),
   },
 }));
@@ -88,6 +91,9 @@ describe("ReservationForm", () => {
     vi.mocked(reservationService.getRooms).mockResolvedValue([availableRoom]);
     vi.mocked(reservationService.create).mockReset();
     vi.mocked(reservationService.createPayment).mockReset();
+    vi.mocked(reservationService.getById).mockReset();
+    vi.mocked(reservationService.updateStatus).mockReset();
+    vi.mocked(reservationService.checkIn).mockReset();
     notify.mockReset();
   });
 
@@ -97,8 +103,18 @@ describe("ReservationForm", () => {
   });
 
   function renderForm() {
+    return renderFormAt("/reservations/new");
+  }
+
+  function CurrentPath() {
+    const location = useLocation();
+    return <output data-testid="current-path">{location.pathname}</output>;
+  }
+
+  function renderFormAt(path: string) {
     return render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[path]}>
+        <CurrentPath />
         <FeedbackContext.Provider value={{ notify, confirm: vi.fn().mockResolvedValue(true) }}>
           <ReservationForm />
         </FeedbackContext.Provider>
@@ -266,6 +282,43 @@ describe("ReservationForm", () => {
     expect(reservationId).toBe(createdReservation.id);
     expect(payment).toEqual({ amount: 50, paymentMethod: "Transferencia", reference: "TRX-2037-001" });
     expect(idempotencyKey).toEqual(expect.any(String));
+  });
+
+  it("confirms and checks in a quick-arrival reservation when the required advance is paid", async () => {
+    vi.mocked(reservationService.create).mockResolvedValue(createdReservation);
+    vi.mocked(reservationService.createPayment).mockResolvedValue({} as never);
+    vi.mocked(reservationService.getById).mockResolvedValue({ ...createdReservation, abonado: 50 });
+    vi.mocked(reservationService.updateStatus).mockResolvedValue({ ...createdReservation, abonado: 50, estado: "Confirmada" });
+    vi.mocked(reservationService.checkIn).mockResolvedValue({ id: 88 } as never);
+    const user = userEvent.setup();
+    renderFormAt("/reservations/new?checkInNow=1");
+
+    expect(screen.getByRole("heading", { name: "Llegada sin reserva" })).toBeInTheDocument();
+    await fillNewCustomerReservation(user);
+    await user.click(screen.getByLabelText("Registrar pago ahora (opcional)"));
+    await waitFor(() => expect(screen.getByLabelText("Monto recibido (USD) *")).toHaveValue(50));
+    await user.click(screen.getByRole("button", { name: "Crear reserva y registrar llegada" }));
+
+    await waitFor(() => expect(reservationService.checkIn).toHaveBeenCalledWith(createdReservation.id));
+    expect(reservationService.updateStatus).toHaveBeenCalledWith(createdReservation.id, "Confirmada");
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/stays/88/services");
+    expect(notify).toHaveBeenCalledWith("Llegada registrada. Ya puedes agregar servicios.");
+  });
+
+  it("leaves the quick-arrival reservation on its detail when the advance is not covered", async () => {
+    vi.mocked(reservationService.create).mockResolvedValue(createdReservation);
+    vi.mocked(reservationService.getById).mockResolvedValue(createdReservation);
+    const user = userEvent.setup();
+    renderFormAt("/reservations/new?checkInNow=1");
+
+    await fillNewCustomerReservation(user);
+    await user.click(screen.getByRole("button", { name: "Crear reserva y registrar llegada" }));
+
+    await waitFor(() => expect(reservationService.getById).toHaveBeenCalledWith(createdReservation.id));
+    expect(reservationService.updateStatus).not.toHaveBeenCalled();
+    expect(reservationService.checkIn).not.toHaveBeenCalled();
+    expect(screen.getByTestId("current-path")).toHaveTextContent(`/reservations/${createdReservation.id}`);
+    expect(notify).toHaveBeenCalledWith(expect.stringContaining("Registra el anticipo requerido y confirma la reserva"));
   });
 
   it("does not retry reservation creation when the optional payment fails", async () => {
