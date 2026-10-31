@@ -26,6 +26,7 @@ export default function RoomsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<RoomPayload>(emptyForm);
+  const [pricePerNightInput, setPricePerNightInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
@@ -56,16 +57,29 @@ export default function RoomsPage() {
       pricePerNight: room.pricePerNight,
       active: room.active,
     } : emptyForm);
+    setPricePerNightInput(room && room.pricePerNight > 0 ? String(room.pricePerNight) : "");
     setShowForm(true);
   };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (submitting) return;
+    const normalizedPrice = pricePerNightInput.trim().replace(",", ".");
+    const price = Number(normalizedPrice);
+    if (!/^\d+(?:\.\d{0,2})?$/.test(normalizedPrice) || !Number.isFinite(price) || price <= 0) {
+      notify("Ingresa un precio por noche mayor que $0.00, con hasta dos decimales", "error");
+      return;
+    }
+    const priceCents = Math.round(price * 100);
+    if (!Number.isSafeInteger(priceCents) || priceCents <= 0) {
+      notify("El precio por noche no es válido", "error");
+      return;
+    }
     setSubmitting(true);
     try {
-      if (editingId) await roomService.update(editingId, form);
-      else await roomService.create(form);
+      const payload = { ...form, pricePerNight: priceCents / 100 };
+      if (editingId) await roomService.update(editingId, payload);
+      else await roomService.create(payload);
       notify(editingId ? "Habitación actualizada" : "Habitación creada");
       setShowForm(false);
       await load();
@@ -151,7 +165,7 @@ export default function RoomsPage() {
               <label>Código *<input required value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value })} /></label>
               <label>Nombre *<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
               <label>Categoría *<input required value={form.category || ""} onChange={(event) => setForm({ ...form, category: event.target.value })} list="room-categories" /><datalist id="room-categories"><option value="Estándar" /><option value="Superior" /><option value="Deluxe" /><option value="Suite" /><option value="Familiar" /></datalist></label>
-              <label>Precio por noche (USD) *<input required type="number" min="0" step="0.01" value={form.pricePerNight ?? 0} onChange={(event) => setForm({ ...form, pricePerNight: Number(event.target.value) })} /></label>
+              <label>Precio por noche (USD) *<input type="text" inputMode="decimal" placeholder="0.00" value={pricePerNightInput} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setPricePerNightInput(event.target.value)} /></label>
               <label className="full-column">Descripción<textarea rows={3} value={form.description || ""} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
               <label className="feature-checkbox"><input type="checkbox" checked={form.active ?? true} onChange={(event) => setForm({ ...form, active: event.target.checked })} /> Habitación activa</label>
               <footer>

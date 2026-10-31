@@ -49,6 +49,11 @@ test.describe.serial("flujos críticos del PMS", () => {
       data: { fondoInicial: 100 },
     });
 
+    const roomResponse = await api("/rooms/availability?from=2035-06-10&to=2035-06-12");
+    const room = roomResponse.data.find((candidate: { available: boolean }) => candidate.available);
+    expect(room, "Debe existir una habitación disponible para el flujo E2E").toBeTruthy();
+    await api(`/rooms/${room.id}`, { method: "PUT", data: { pricePerNight: 100 } });
+
     await page.goto("/customers");
     await page.getByRole("button", { name: "+ Nuevo cliente" }).click();
     const customerDialog = page.getByRole("dialog");
@@ -59,22 +64,18 @@ test.describe.serial("flujos críticos del PMS", () => {
     await expect(page.getByRole("heading", { name: "Cliente E2E Playwright" })).toBeVisible();
 
     await page.getByRole("link", { name: "Nueva reserva" }).click();
-    await page.getByLabel("Total de reserva (USD) *").fill("200");
     await page.getByLabel("Entrada *").fill("2035-06-10");
     await page.getByLabel("Salida *").fill("2035-06-12");
-    await expect(page.getByLabel("Habitación disponible *").locator("option")).not.toHaveCount(1);
-    await page.getByLabel("Habitación disponible *").selectOption({ index: 1 });
+    await page.getByLabel("Habitación disponible *").selectOption(String(room.id));
+    await expect(page.getByLabel("Total de hospedaje calculado (USD) *")).toHaveValue("200.00");
     await expect(page.getByText("Anticipo estimado: $100.00")).toBeVisible();
+    await page.getByLabel("Registrar pago ahora (opcional)").check();
+    await page.getByLabel("Método de pago *").selectOption("Transferencia");
+    await page.getByLabel("Referencia *").fill("E2E-ANTICIPO-001");
+    await expect(page.getByText("Saldo pendiente después del pago: $100.00")).toBeVisible();
     await page.getByRole("button", { name: "Crear reserva" }).click();
     await expect(page.getByText("Anticipo requerido")).toBeVisible();
-    await expect(page.getByText("Pendiente", { exact: true })).toBeVisible();
-
-    await page.getByRole("button", { name: "Registrar pago" }).click();
-    const paymentDialog = page.getByRole("dialog");
-    await paymentDialog.getByLabel("Monto (USD) *").fill("100");
-    await paymentDialog.getByLabel("Método *").selectOption("Transferencia");
-    await paymentDialog.getByLabel("Referencia *").fill("E2E-ANTICIPO-001");
-    await paymentDialog.getByRole("button", { name: "Confirmar pago" }).click();
+    await expect(page.getByText("Confirmada", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Registrar check-in" })).toBeVisible();
 
     await page.getByRole("button", { name: "Registrar check-in" }).click();
@@ -337,7 +338,7 @@ test.describe.serial("flujos críticos del PMS", () => {
     await page.getByLabel("Salida *").fill("2037-01-12");
     await expect(page.getByLabel("Habitación disponible *").locator("option")).not.toHaveCount(1);
     await page.getByLabel("Habitación disponible *").selectOption({ label: "Habitación E2E PMS · $50.00/noche" });
-    await expect(page.getByLabel("Total de reserva (USD) *")).toHaveValue("100");
+    await expect(page.getByLabel("Total de hospedaje calculado (USD) *")).toHaveValue("100.00");
     await page.getByLabel("Tipo de anticipo").selectOption("FIXED");
     await page.getByLabel("Monto de anticipo *").fill("0");
     await page.getByRole("button", { name: "Crear reserva" }).click();
