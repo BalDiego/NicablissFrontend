@@ -83,6 +83,13 @@
 .reservation-summary-metrics .reservation-summary-total strong { color: var(--forest-800); font-size: 25px; }
 .reservation-summary-metrics .reservation-summary-balance strong { color: var(--gold-600); }
 .reservation-payment-hint { margin: 0; color: var(--ink-500); font-size: 12px; line-height: 1.5; }
+.reservation-date-field, .reservation-room-field { display: grid; align-content: start; gap: 7px; min-width: 0; }
+.reservation-date-field > label, .reservation-room-field > label { display: grid; gap: 7px; color: var(--ink-700); font-size: 12px; font-weight: 750; }
+.reservation-date-hint, .reservation-room-status { color: var(--ink-500); font-size: 11px; font-weight: 500; line-height: 1.4; }
+.feature-form select:disabled { cursor: wait; background: #f5f8f6; color: var(--ink-500); }
+.reservation-room-error { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--danger); font-size: 11px; font-weight: 600; }
+.reservation-room-error button { flex: 0 0 auto; padding: 4px 8px; border: 1px solid #efc3c0; border-radius: 6px; background: #fff; color: var(--danger); font-size: 10px; font-weight: 750; cursor: pointer; }
+.reservation-room-error button:hover { background: var(--danger-soft); }
 
 .customer-active-stay { display: grid; gap: 16px; padding: 20px; border: 1px solid #cfe1d7; border-radius: 14px; background: linear-gradient(135deg, #f4fbf6, #fff); box-shadow: var(--shadow-xs); }
 .customer-active-stay-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }

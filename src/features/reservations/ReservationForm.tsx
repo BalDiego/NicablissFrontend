@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useFeedback } from "../../hooks/useFeedback";
 import { useBusinessToday } from "../../hooks/useBusinessToday";
@@ -59,6 +59,11 @@ function nightsBetween(from: string, to: string): number {
   return Number.isFinite(nights) && nights > 0 ? nights : 0;
 }
 
+function formatDateDayFirst(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+}
+
 export default function ReservationForm() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -73,6 +78,11 @@ export default function ReservationForm() {
     fechaEntrada: draft?.form?.fechaEntrada || businessToday,
     customerId: Number(params.get("customerId")) || draft?.form?.customerId || 0,
   }));
+  const [loadingRooms, setLoadingRooms] = useState(() => !(form.fechaEntrada && form.fechaSalida && form.fechaSalida > form.fechaEntrada));
+  const [checkingAvailability, setCheckingAvailability] = useState(() => Boolean(form.fechaEntrada && form.fechaSalida && form.fechaSalida > form.fechaEntrada));
+  const [roomLoadError, setRoomLoadError] = useState("");
+  const [roomSelectionMessage, setRoomSelectionMessage] = useState("");
+  const [roomRetryKey, setRoomRetryKey] = useState(0);
   const [customerMode, setCustomerMode] = useState<"existing" | "new">(draft?.customerMode ?? "existing");
   const [newCustomer, setNewCustomer] = useState<ReservationCustomerPayload>({ ...emptyCustomer, ...draft?.newCustomer });
   const [recordPayment, setRecordPayment] = useState(draft?.recordPayment ?? false);
@@ -88,20 +98,49 @@ export default function ReservationForm() {
   const paymentAmount = paymentAmountOverride ?? (estimatedDeposit > 0 ? estimatedDeposit.toFixed(2) : "");
   const totalCents = Math.round((form.totalReserva ?? 0) * 100);
   const nights = nightsBetween(form.fechaEntrada, form.fechaSalida);
+  const hasValidDateRange = Boolean(form.fechaEntrada && form.fechaSalida && form.fechaSalida > form.fechaEntrada);
   const parsedPaymentAmount = paymentAmount.trim() === "" ? 0 : Number(paymentAmount);
   const paymentCents = Number.isFinite(parsedPaymentAmount) ? Math.round(parsedPaymentAmount * 100) : 0;
   const balanceAfterPayment = Math.max(0, totalCents - (recordPayment ? paymentCents : 0)) / 100;
   const paymentExceedsTotal = recordPayment && paymentCents > totalCents;
+  const formRef = useRef(form);
 
   useEffect(() => { void customerService.getAll().then(setCustomers); }, []);
-  const loadRooms = useCallback(async () => {
-    if (!form.fechaEntrada || !form.fechaSalida || form.fechaSalida <= form.fechaEntrada) return;
-    setRooms(await reservationService.getRooms(form.fechaEntrada, form.fechaSalida));
-  }, [form.fechaEntrada, form.fechaSalida]);
+  useEffect(() => { formRef.current = form; }, [form]);
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadRooms(), 0);
-    return () => window.clearTimeout(timer);
-  }, [loadRooms]);
+    let cancelled = false;
+    const validRange = Boolean(form.fechaEntrada && form.fechaSalida && form.fechaSalida > form.fechaEntrada);
+
+    void reservationService.getRooms(
+      validRange ? form.fechaEntrada : undefined,
+      validRange ? form.fechaSalida : undefined,
+    ).then((loadedRooms) => {
+      if (cancelled) return;
+      setRooms(loadedRooms);
+      const currentForm = formRef.current;
+      if (validRange && currentForm.roomId) {
+        const selectedRoomId = currentForm.roomId;
+        const selectedRoom = loadedRooms.find((room) => room.id === selectedRoomId);
+        if (!selectedRoom?.available || selectedRoom.pricePerNight <= 0) {
+          setRoomSelectionMessage("La habitación seleccionada no está disponible en esas fechas. Selecciona otra.");
+          setForm((current) => current.roomId === selectedRoomId ? { ...current, roomId: 0, totalReserva: 0 } : current);
+        } else if (!(currentForm.totalReserva ?? 0)) {
+          const stayNights = nightsBetween(currentForm.fechaEntrada, currentForm.fechaSalida);
+          const suggestedTotal = Number((selectedRoom.pricePerNight * stayNights).toFixed(2));
+          setForm((current) => current.roomId === selectedRoomId ? { ...current, totalReserva: suggestedTotal } : current);
+        }
+      }
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      setRoomLoadError(error instanceof Error ? error.message : "No se pudieron cargar las habitaciones.");
+    }).finally(() => {
+      if (cancelled) return;
+      setLoadingRooms(false);
+      setCheckingAvailability(false);
+    });
+
+    return () => { cancelled = true; };
+  }, [form.fechaEntrada, form.fechaSalida, roomRetryKey]);
   useEffect(() => {
     try {
       const reservationDraft: ReservationDraft = {
@@ -189,19 +228,32 @@ export default function ReservationForm() {
   const selectRoom = (roomId: number) => {
     const room = rooms.find((item) => item.id === roomId);
     const nights = nightsBetween(form.fechaEntrada, form.fechaSalida);
-    const suggested = room && room.available && room.pricePerNight > 0 && nights > 0
+    const suggested = room && room.pricePerNight > 0 && nights > 0 && room.available
       ? Number((room.pricePerNight * nights).toFixed(2))
       : 0;
+    setRoomSelectionMessage("");
     setForm({ ...form, roomId, totalReserva: suggested });
   };
 
   const changeDate = (field: "fechaEntrada" | "fechaSalida", value: string) => {
-    setForm({
+    const nextForm = {
       ...form,
       [field]: value,
-      roomId: 0,
       totalReserva: 0,
-    });
+    };
+    const validRange = Boolean(nextForm.fechaEntrada && nextForm.fechaSalida && nextForm.fechaSalida > nextForm.fechaEntrada);
+    setForm(nextForm);
+    setRoomLoadError("");
+    setRoomSelectionMessage("");
+    setLoadingRooms(!validRange);
+    setCheckingAvailability(validRange);
+  };
+
+  const retryRoomLoad = () => {
+    setRoomLoadError("");
+    setLoadingRooms(!hasValidDateRange);
+    setCheckingAvailability(hasValidDateRange);
+    setRoomRetryKey((key) => key + 1);
   };
 
   return (
@@ -225,9 +277,36 @@ export default function ReservationForm() {
           </>
         )}
 
-        <label>Entrada *<input required type="date" value={form.fechaEntrada} onChange={(event) => changeDate("fechaEntrada", event.target.value)} /></label>
-        <label>Salida *<input required type="date" min={form.fechaEntrada} value={form.fechaSalida} onChange={(event) => changeDate("fechaSalida", event.target.value)} /></label>
-        <label>Habitación disponible *<select required value={form.roomId || ""} onChange={(event) => selectRoom(Number(event.target.value))}><option value="">Seleccionar</option>{rooms.filter((room) => room.available).map((room) => <option key={room.id} value={room.id} disabled={room.pricePerNight <= 0}>{room.name}{room.pricePerNight > 0 ? ` · $${room.pricePerNight.toFixed(2)}/noche` : " · Tarifa sin configurar"}</option>)}</select></label>
+        <div className="reservation-date-field">
+          <label htmlFor="reservation-check-in">Entrada *</label>
+          <input id="reservation-check-in" required type="date" value={form.fechaEntrada} onChange={(event) => changeDate("fechaEntrada", event.target.value)} />
+          <small className="reservation-date-hint">{form.fechaEntrada ? `Fecha: ${formatDateDayFirst(form.fechaEntrada)} (DD/MM/AAAA)` : "Formato: DD/MM/AAAA"}</small>
+        </div>
+        <div className="reservation-date-field">
+          <label htmlFor="reservation-check-out">Salida *</label>
+          <input id="reservation-check-out" required type="date" min={form.fechaEntrada} value={form.fechaSalida} onChange={(event) => changeDate("fechaSalida", event.target.value)} />
+          <small className="reservation-date-hint">{form.fechaSalida ? `Fecha: ${formatDateDayFirst(form.fechaSalida)} (DD/MM/AAAA)` : "Formato: DD/MM/AAAA"}</small>
+        </div>
+        <div className="reservation-room-field">
+          <label htmlFor="reservation-room">Habitación disponible *</label>
+          <select id="reservation-room" required value={form.roomId || ""} disabled={loadingRooms || checkingAvailability || Boolean(roomLoadError)} onChange={(event) => selectRoom(Number(event.target.value))}>
+            <option value="">{loadingRooms ? "Cargando habitaciones…" : checkingAvailability ? "Verificando disponibilidad…" : "Seleccionar"}</option>
+            {rooms.map((room) => {
+              const unavailableForDates = hasValidDateRange && !room.available;
+              const noRate = room.pricePerNight <= 0;
+              const detail = noRate ? "Tarifa sin configurar" : `$${room.pricePerNight.toFixed(2)}/noche`;
+              const status = unavailableForDates ? " · No disponible en estas fechas" : hasValidDateRange ? " · Disponible" : " · Verifica fechas";
+              return <option key={room.id} value={room.id} disabled={noRate || unavailableForDates}>{room.name} · {detail}{status}</option>;
+            })}
+          </select>
+          {loadingRooms && <small className="reservation-room-status" role="status">Cargando habitaciones disponibles…</small>}
+          {checkingAvailability && <small className="reservation-room-status" role="status">Consultando disponibilidad para las fechas seleccionadas…</small>}
+          {!loadingRooms && !checkingAvailability && !hasValidDateRange && !roomLoadError && <small className="reservation-room-status">Las habitaciones ya están cargadas. Selecciona fechas para confirmar disponibilidad.</small>}
+          {!loadingRooms && !checkingAvailability && hasValidDateRange && !roomLoadError && rooms.length === 0 && <small className="reservation-room-status" role="status">No hay habitaciones activas registradas.</small>}
+          {!loadingRooms && !checkingAvailability && hasValidDateRange && !roomLoadError && rooms.length > 0 && !rooms.some((room) => room.available && room.pricePerNight > 0) && <small className="reservation-room-status" role="status">No hay habitaciones con tarifa disponibles para estas fechas.</small>}
+          {roomLoadError && <div className="reservation-room-error" role="alert"><span>{roomLoadError}</span><button type="button" onClick={retryRoomLoad}>Reintentar</button></div>}
+          {roomSelectionMessage && <small className="reservation-room-status" role="status">{roomSelectionMessage}</small>}
+        </div>
         <label>Tipo de anticipo<select value={form.depositType} onChange={(event) => setForm({ ...form, depositType: event.target.value as ReservationPayload["depositType"], depositValue: event.target.value === "PERCENTAGE" ? 50 : "" })}><option value="PERCENTAGE">Porcentaje</option><option value="FIXED">Monto fijo</option></select></label>
         <label>{form.depositType === "PERCENTAGE" ? "Porcentaje" : "Monto de anticipo"} *<input required type="number" min="0" max={form.depositType === "PERCENTAGE" ? 100 : form.totalReserva || undefined} step="0.01" value={form.depositValue} onChange={(event) => setForm({ ...form, depositValue: event.target.value })} /><small>Anticipo estimado: ${estimatedDeposit.toFixed(2)}</small></label>
         <section className="full-column reservation-summary" aria-label="Resumen de la reserva">

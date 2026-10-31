@@ -96,7 +96,10 @@ describe("ReservationForm", () => {
     fireEvent.change(screen.getByLabelText("Salida *"), { target: { value: "2037-01-12" } });
 
     const roomSelect = screen.getByLabelText("Habitación disponible *");
-    await waitFor(() => expect(roomSelect.querySelectorAll("option")).toHaveLength(2));
+    await waitFor(() => {
+      expect(roomSelect.querySelectorAll("option")).toHaveLength(2);
+      expect(roomSelect).toBeEnabled();
+    });
     await user.selectOptions(roomSelect, "9");
     await waitFor(() => expect(screen.getByLabelText("Total de hospedaje calculado (USD)")).toHaveTextContent("$100.00"));
   }
@@ -144,6 +147,18 @@ describe("ReservationForm", () => {
     renderForm();
 
     expect(screen.getByLabelText("Entrada *")).toHaveValue("2037-01-08");
+    expect(screen.getByText("Fecha: 08/01/2037 (DD/MM/AAAA)")).toBeInTheDocument();
+  });
+
+  it("loads and displays rooms before the guest enters both dates", async () => {
+    renderForm();
+
+    const roomSelect = screen.getByLabelText("Habitación disponible *");
+    await waitFor(() => expect(roomSelect).toBeEnabled());
+
+    expect(roomSelect).toHaveTextContent("Habitación de prueba");
+    expect(reservationService.getRooms).toHaveBeenCalledWith(undefined, undefined);
+    expect(screen.getByText("Las habitaciones ya están cargadas. Selecciona fechas para confirmar disponibilidad.")).toBeInTheDocument();
   });
 
   it("leaves the fixed advance empty until an amount is entered", async () => {
