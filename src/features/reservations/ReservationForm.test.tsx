@@ -20,6 +20,10 @@ vi.mock("../../services/customer.service", () => ({
   customerService: { getAll: vi.fn() },
 }));
 
+vi.mock("../../hooks/useBusinessToday", () => ({
+  useBusinessToday: () => "2037-01-08",
+}));
+
 const availableRoom = {
   id: 9,
   code: "TEST-09",
@@ -61,6 +65,7 @@ describe("ReservationForm", () => {
   const notify = vi.fn();
 
   beforeEach(() => {
+    localStorage.removeItem("nicabliss_reservation_draft");
     vi.mocked(customerService.getAll).mockResolvedValue([]);
     vi.mocked(reservationService.getRooms).mockResolvedValue([availableRoom]);
     vi.mocked(reservationService.create).mockReset();
@@ -68,7 +73,10 @@ describe("ReservationForm", () => {
     notify.mockReset();
   });
 
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    localStorage.removeItem("nicabliss_reservation_draft");
+  });
 
   function renderForm() {
     return render(
@@ -90,7 +98,7 @@ describe("ReservationForm", () => {
     const roomSelect = screen.getByLabelText("Habitación disponible *");
     await waitFor(() => expect(roomSelect.querySelectorAll("option")).toHaveLength(2));
     await user.selectOptions(roomSelect, "9");
-    await waitFor(() => expect(screen.getByLabelText("Total de hospedaje calculado (USD) *")).toHaveValue(100));
+    await waitFor(() => expect(screen.getByLabelText("Total de hospedaje calculado (USD)")).toHaveTextContent("$100.00"));
   }
 
   it("preserves the entered reservation and shows a conflict returned by the API", async () => {
@@ -120,7 +128,7 @@ describe("ReservationForm", () => {
     renderForm();
 
     await fillNewCustomerReservation(user);
-    expect(screen.getByLabelText("Total de hospedaje calculado (USD) *")).toHaveAttribute("readonly");
+    expect(screen.getByLabelText("Total de hospedaje calculado (USD)")).toHaveTextContent("$100.00");
     await user.click(screen.getByRole("button", { name: "Crear reserva" }));
 
     await waitFor(() => expect(reservationService.create).toHaveBeenCalledOnce());
@@ -128,7 +136,56 @@ describe("ReservationForm", () => {
     expect(payload.totalReserva).toBeUndefined();
     expect(payload.customer?.documento).toBe("DOC-RESERVATION-409");
     expect(payload.roomId).toBe(9);
+    expect(localStorage.getItem("nicabliss_reservation_draft")).toBeNull();
     expect(reservationService.createPayment).not.toHaveBeenCalled();
+  });
+
+  it("defaults the check-in date to the configured business date", () => {
+    renderForm();
+
+    expect(screen.getByLabelText("Entrada *")).toHaveValue("2037-01-08");
+  });
+
+  it("leaves the fixed advance empty until an amount is entered", async () => {
+    vi.mocked(reservationService.create).mockResolvedValue(createdReservation);
+    const user = userEvent.setup();
+    renderForm();
+
+    await fillNewCustomerReservation(user);
+    await user.selectOptions(screen.getByLabelText("Tipo de anticipo"), "FIXED");
+    const depositInput = screen.getByLabelText(/Monto de anticipo/);
+    expect(depositInput).toHaveValue(null);
+
+    await user.type(depositInput, "25.50");
+    expect(depositInput).toHaveValue(25.5);
+    await user.click(screen.getByRole("button", { name: "Crear reserva" }));
+
+    await waitFor(() => expect(reservationService.create).toHaveBeenCalledOnce());
+    expect(vi.mocked(reservationService.create).mock.calls[0][0]).toMatchObject({
+      depositType: "FIXED",
+      depositValue: 25.5,
+    });
+  });
+
+  it("restores the reservation draft after leaving and returning to the form", async () => {
+    const user = userEvent.setup();
+    const firstRender = renderForm();
+
+    await fillNewCustomerReservation(user);
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem("nicabliss_reservation_draft") || "{}") as { form?: { roomId?: number } };
+      expect(saved.form?.roomId).toBe(9);
+    });
+
+    firstRender.unmount();
+    renderForm();
+
+    expect(screen.getByRole("button", { name: "Registrar nuevo cliente" })).toHaveClass("feature-primary");
+    expect(screen.getByLabelText("Nombre del huésped *")).toHaveValue("Huésped de prueba");
+    expect(screen.getByLabelText("Documento *")).toHaveValue("DOC-RESERVATION-409");
+    expect(screen.getByLabelText("Entrada *")).toHaveValue("2037-01-10");
+    expect(screen.getByLabelText("Salida *")).toHaveValue("2037-01-12");
+    expect(screen.getByLabelText("Total de hospedaje calculado (USD)")).toHaveTextContent("$100.00");
   });
 
   it("records an optional advance, its method/reference and displays the remaining balance", async () => {
@@ -140,7 +197,7 @@ describe("ReservationForm", () => {
     await fillNewCustomerReservation(user);
     await user.click(screen.getByLabelText("Registrar pago ahora (opcional)"));
     await waitFor(() => expect(screen.getByLabelText("Monto recibido (USD) *")).toHaveValue(50));
-    expect(screen.getByText(/Saldo pendiente después del pago:/)).toHaveTextContent("$50.00");
+    expect(screen.getByLabelText("Resumen de la reserva")).toHaveTextContent(/Saldo pendiente\s*\$50\.00/);
 
     await user.selectOptions(screen.getByLabelText("Método de pago *"), "Transferencia");
     await user.type(screen.getByLabelText("Referencia *"), "TRX-2037-001");

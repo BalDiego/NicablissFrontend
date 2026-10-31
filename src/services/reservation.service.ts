@@ -27,7 +27,7 @@ export interface ReservationPayload {
   fechaSalida: string;
   totalReserva?: number;
   depositType: "PERCENTAGE" | "FIXED";
-  depositValue: number;
+  depositValue: number | string;
   observaciones?: string;
 }
 
