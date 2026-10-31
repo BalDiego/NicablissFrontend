@@ -160,3 +160,27 @@
 @media (max-width: 380px) {
   .feature-form footer { grid-template-columns: 1fr; }
 }
+
+.stays-arrival-modal { width: min(760px, 100%); }
+.stays-arrival-modal > header { align-items: flex-start; gap: 16px; }
+.stays-arrival-modal > header p { margin: 6px 0 0; color: var(--ink-500); font-size: 12px; line-height: 1.5; }
+.stays-arrival-content { display: grid; gap: 14px; padding: 20px 22px 22px; }
+.stays-arrival-search { display: grid; gap: 7px; color: var(--ink-700); font-size: 12px; font-weight: 750; }
+.stays-arrival-search input { width: 100%; min-height: 42px; padding: 10px 12px; border: 1px solid #d6e0da; border-radius: 8px; color: var(--ink-900); font-size: 13px; }
+.stays-arrival-search input:focus { outline: 0; border-color: var(--forest-600); box-shadow: 0 0 0 3px rgba(55,124,103,.1); }
+.stays-arrival-list { display: grid; gap: 9px; max-height: min(45vh, 390px); overflow-y: auto; }
+.stays-arrival-item { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 13px 14px; border: 1px solid var(--border); border-radius: 10px; background: #fff; }
+.stays-arrival-item > div { display: grid; gap: 4px; min-width: 0; }
+.stays-arrival-item strong { color: var(--forest-950); font-size: 13px; }
+.stays-arrival-item span { color: var(--ink-700); font-size: 12px; }
+.stays-arrival-item small, .stays-arrival-hint { color: var(--ink-500); font-size: 11px; line-height: 1.45; }
+.stays-arrival-hint { margin: 0; }
+.stays-arrival-content > footer { display: flex; justify-content: flex-end; gap: 9px; padding-top: 5px; }
+.stays-arrival-content > footer > button:first-child { min-height: 40px; padding: 9px 14px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: var(--ink-700); font-size: 12px; font-weight: 700; cursor: pointer; }
+
+@media (max-width: 640px) {
+  .stays-arrival-item { align-items: stretch; flex-direction: column; }
+  .stays-arrival-item .feature-primary { width: 100%; }
+  .stays-arrival-content { padding: 18px; }
+  .stays-arrival-content > footer { display: grid; grid-template-columns: 1fr 1fr; }
+}

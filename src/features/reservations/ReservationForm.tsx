@@ -67,15 +67,17 @@ function formatDateDayFirst(value: string): string {
 export default function ReservationForm() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const quickArrival = params.get("checkInNow") === "1";
   const { notify } = useFeedback();
   const businessToday = useBusinessToday();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [draft] = useState(readReservationDraft);
+  const [draft] = useState(() => quickArrival ? null : readReservationDraft());
   const [form, setForm] = useState<ReservationPayload>(() => ({
     ...initial,
     ...draft?.form,
-    fechaEntrada: draft?.form?.fechaEntrada || businessToday,
+    fechaEntrada: quickArrival ? businessToday : draft?.form?.fechaEntrada || businessToday,
+    fechaSalida: quickArrival ? "" : draft?.form?.fechaSalida || "",
     customerId: Number(params.get("customerId")) || draft?.form?.customerId || 0,
   }));
   const [loadingRooms, setLoadingRooms] = useState(() => !(form.fechaEntrada && form.fechaSalida && form.fechaSalida > form.fechaEntrada));
@@ -158,6 +160,36 @@ export default function ReservationForm() {
     }
   }, [form, customerMode, newCustomer, recordPayment, paymentAmountOverride, paymentMethod, paymentReference]);
 
+  const completeQuickArrival = async (reservationId: number, reservationCode: string) => {
+    try {
+      let reservation = await reservationService.getById(reservationId);
+      if (reservation.estado === "Pendiente") {
+        const depositIsCovered = Math.round(reservation.abonado * 100)
+          >= Math.round(reservation.depositoRequerido * 100);
+        if (!depositIsCovered) {
+          notify(`Reserva ${reservationCode} creada. Registra el anticipo requerido y confirma la reserva para completar el check-in.`);
+          navigate(`/reservations/${reservationId}`);
+          return;
+        }
+        reservation = await reservationService.updateStatus(reservationId, "Confirmada");
+      }
+
+      if (reservation.estado !== "Confirmada") {
+        notify(`La reserva ${reservationCode} se creó, pero está en estado ${reservation.estado}. Revisa el detalle para continuar.`, "error");
+        navigate(`/reservations/${reservationId}`);
+        return;
+      }
+
+      const stay = await reservationService.checkIn(reservationId);
+      notify("Llegada registrada. Ya puedes agregar servicios.");
+      navigate(`/stays/${stay.id}/services`);
+    } catch (caught: unknown) {
+      const message = caught instanceof Error ? caught.message : "No se pudo completar el check-in";
+      notify(`La reserva ${reservationCode} se creó, pero no se pudo completar la llegada: ${message}`, "error");
+      navigate(`/reservations/${reservationId}`);
+    }
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (submitting) return;
@@ -216,6 +248,11 @@ export default function ReservationForm() {
         }
       }
 
+      if (quickArrival) {
+        await completeQuickArrival(created.id, created.codigoReserva);
+        return;
+      }
+
       notify(recordPayment
         ? `Reserva ${created.codigoReserva} creada y pago registrado`
         : `Reserva ${created.codigoReserva} creada`);
@@ -258,7 +295,7 @@ export default function ReservationForm() {
 
   return (
     <section className="feature-page feature-form-page">
-      <header className="feature-heading"><div><span>RECEPCIÓN / RESERVAS</span><h1>Nueva reserva</h1><p>Selecciona un cliente existente o registra al huésped en el momento; la habitación congela su precio actual.</p></div></header>
+      <header className="feature-heading"><div><span>RECEPCIÓN / RESERVAS</span><h1>{quickArrival ? "Llegada sin reserva" : "Nueva reserva"}</h1><p>{quickArrival ? "Registra al huésped y la habitación; si se cubre el anticipo requerido, el sistema completa el check-in automáticamente." : "Selecciona un cliente existente o registra al huésped en el momento; la habitación congela su precio actual."}</p></div></header>
       <form onSubmit={submit} className="feature-panel feature-form two-columns">
         <div className="full-column reservation-customer-switch" role="group" aria-label="Tipo de cliente">
           <button type="button" className={customerMode === "existing" ? "feature-primary" : "feature-link"} aria-pressed={customerMode === "existing"} onClick={() => setCustomerMode("existing")}>Cliente existente</button>
@@ -342,9 +379,9 @@ export default function ReservationForm() {
               {paymentMethod !== "Efectivo" && <label className="full-column">Referencia *<input required value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} /></label>}
               {paymentExceedsTotal && <p className="feature-error full-column" role="alert">El pago no puede superar el total de la reserva.</p>}
             </div>
-          ) : <p className="reservation-payment-hint">Puedes registrar un pago inicial ahora o dejarlo pendiente para más tarde.</p>}
+          ) : <p className="reservation-payment-hint">{quickArrival ? "Para completar el check-in ahora, registra el anticipo requerido. Si queda pendiente, podrás continuarlo desde el detalle de la reserva." : "Puedes registrar un pago inicial ahora o dejarlo pendiente para más tarde."}</p>}
         </section>
-        <footer className="full-column"><button type="button" onClick={() => { clearReservationDraft(); navigate("/reservations"); }}>Cancelar</button><button className="feature-primary" disabled={submitting}>{submitting ? "Guardando..." : "Crear reserva"}</button></footer>
+        <footer className="full-column"><button type="button" onClick={() => { clearReservationDraft(); navigate(quickArrival ? "/stays" : "/reservations"); }}>Cancelar</button><button className="feature-primary" disabled={submitting}>{submitting ? "Guardando..." : quickArrival ? "Crear reserva y registrar llegada" : "Crear reserva"}</button></footer>
       </form>
     </section>
   );
