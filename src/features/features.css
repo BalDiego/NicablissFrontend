@@ -57,6 +57,11 @@
 .feature-form footer { display: flex; justify-content: flex-end; gap: 9px; padding-top: 7px; }
 .feature-form .full-column { grid-column: 1 / -1; }
 .feature-form-page .feature-panel { overflow: visible; }
+.reservation-customer-switch { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.reservation-customer-switch > button { min-height: 44px; max-width: 100%; text-align: center; white-space: normal; line-height: 1.35; }
+.reservation-customer-switch > .feature-link { padding: 10px 14px; border: 1px solid transparent; border-radius: 9px; text-decoration: none; }
+.reservation-customer-switch > .feature-link:hover { border-color: var(--border); background: var(--surface-subtle); text-decoration: none; }
+.feature-form footer > button { min-height: 44px; }
 .feature-summary { display: flex; justify-content: space-between; padding: 14px; border: 1px solid #dceae2; border-radius: 9px; background: var(--forest-50); }
 .feature-section-title { display: flex; justify-content: space-between; align-items: end; }
 .feature-section-title h2 { margin: 0 0 5px; color: var(--forest-950); font: 600 22px Georgia, serif; }
@@ -141,10 +146,17 @@
   .feature-heading .feature-primary, .customer-active-stay-heading .feature-primary { width: 100%; }
   .feature-actions > * { flex: 1; }
   .feature-detail-grid, .feature-form.two-columns, .customer-active-stay-metrics, .stay-account-grid { grid-template-columns: 1fr; }
+  .reservation-customer-switch { align-items: stretch; flex-direction: column; }
+  .reservation-customer-switch > button { width: 100%; }
+  .feature-form footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .feature-form footer > button { width: 100%; padding-inline: 10px; white-space: normal; }
   .stay-account-balance { text-align: left; }
   .reservation-summary { padding: 16px; }
   .reservation-summary-heading { align-items: flex-start; flex-direction: column; }
   .reservation-summary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .feature-modal { max-height: calc(100dvh - 20px); border-radius: 14px; }
   .feature-form { padding: 18px; }
+}
+@media (max-width: 380px) {
+  .feature-form footer { grid-template-columns: 1fr; }
 }

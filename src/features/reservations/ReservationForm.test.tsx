@@ -35,6 +35,24 @@ const availableRoom = {
   available: true,
 };
 
+const occupiedRoom = {
+  ...availableRoom,
+  id: 8,
+  code: "TEST-08",
+  name: "Habitación ocupada",
+  available: false,
+  availableFrom: "2037-01-12",
+};
+
+const inactiveRoom = {
+  ...availableRoom,
+  id: 7,
+  code: "TEST-07",
+  name: "Habitación inactiva",
+  active: false,
+  available: false,
+};
+
 const createdReservation: Reservation = {
   id: 123,
   codigoReserva: "RES-2037-000123",
@@ -97,7 +115,7 @@ describe("ReservationForm", () => {
 
     const roomSelect = screen.getByLabelText("Habitación disponible *");
     await waitFor(() => {
-      expect(roomSelect.querySelectorAll("option")).toHaveLength(2);
+      expect(roomSelect).toHaveTextContent(availableRoom.name);
       expect(roomSelect).toBeEnabled();
     });
     await user.selectOptions(roomSelect, "9");
@@ -159,6 +177,31 @@ describe("ReservationForm", () => {
     expect(roomSelect).toHaveTextContent("Habitación de prueba");
     expect(reservationService.getRooms).toHaveBeenCalledWith(undefined, undefined);
     expect(screen.getByText("Las habitaciones ya están cargadas. Selecciona fechas para confirmar disponibilidad.")).toBeInTheDocument();
+  });
+
+  it("shows occupied and inactive rooms with their status and availability date", async () => {
+    vi.mocked(reservationService.getRooms).mockResolvedValue([availableRoom, occupiedRoom, inactiveRoom]);
+    renderForm();
+
+    const roomSelect = screen.getByLabelText("Habitación disponible *");
+    await waitFor(() => expect(roomSelect).toBeEnabled());
+
+    const occupiedOption = screen.getByRole("option", { name: /Habitación ocupada.*Ocupada.*Disponible desde 12\/01\/2037/ });
+    const inactiveOption = screen.getByRole("option", { name: /Habitación inactiva.*Inactiva/ });
+    expect(occupiedOption).toBeInTheDocument();
+    expect(occupiedOption).toBeEnabled();
+    expect(inactiveOption).toBeDisabled();
+  });
+
+  it("disables occupied rooms for the selected date range and shows when they free up", async () => {
+    vi.mocked(reservationService.getRooms).mockResolvedValue([availableRoom, occupiedRoom, inactiveRoom]);
+    const user = userEvent.setup();
+    renderForm();
+
+    await fillNewCustomerReservation(user);
+
+    expect(screen.getByRole("option", { name: /Habitación ocupada.*Ocupada.*Disponible desde 12\/01\/2037/ })).toBeDisabled();
+    expect(screen.getByRole("option", { name: /Habitación inactiva.*Inactiva/ })).toBeDisabled();
   });
 
   it("leaves the fixed advance empty until an amount is entered", async () => {

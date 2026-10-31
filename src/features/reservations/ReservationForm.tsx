@@ -260,9 +260,9 @@ export default function ReservationForm() {
     <section className="feature-page feature-form-page">
       <header className="feature-heading"><div><span>RECEPCIÓN / RESERVAS</span><h1>Nueva reserva</h1><p>Selecciona un cliente existente o registra al huésped en el momento; la habitación congela su precio actual.</p></div></header>
       <form onSubmit={submit} className="feature-panel feature-form two-columns">
-        <div className="full-column feature-inline-switch">
-          <button type="button" className={customerMode === "existing" ? "feature-primary" : "feature-link"} onClick={() => setCustomerMode("existing")}>Cliente existente</button>
-          <button type="button" className={customerMode === "new" ? "feature-primary" : "feature-link"} onClick={() => setCustomerMode("new")}>Registrar nuevo cliente</button>
+        <div className="full-column reservation-customer-switch" role="group" aria-label="Tipo de cliente">
+          <button type="button" className={customerMode === "existing" ? "feature-primary" : "feature-link"} aria-pressed={customerMode === "existing"} onClick={() => setCustomerMode("existing")}>Cliente existente</button>
+          <button type="button" className={customerMode === "new" ? "feature-primary" : "feature-link"} aria-pressed={customerMode === "new"} onClick={() => setCustomerMode("new")}>Registrar nuevo cliente</button>
         </div>
 
         {customerMode === "existing" ? (
@@ -295,8 +295,19 @@ export default function ReservationForm() {
               const unavailableForDates = hasValidDateRange && !room.available;
               const noRate = room.pricePerNight <= 0;
               const detail = noRate ? "Tarifa sin configurar" : `$${room.pricePerNight.toFixed(2)}/noche`;
-              const status = unavailableForDates ? " · No disponible en estas fechas" : hasValidDateRange ? " · Disponible" : " · Verifica fechas";
-              return <option key={room.id} value={room.id} disabled={noRate || unavailableForDates}>{room.name} · {detail}{status}</option>;
+              const availabilityDate = room.availableFrom && room.availableFrom >= businessToday
+                ? ` · Disponible desde ${formatDateDayFirst(room.availableFrom)}`
+                : " · Fecha de disposición por confirmar";
+              const status = !room.active
+                ? " · Inactiva"
+                : unavailableForDates
+                  ? ` · Ocupada${availabilityDate}`
+                  : hasValidDateRange
+                    ? " · Disponible"
+                    : room.available
+                      ? " · Selecciona fechas para confirmar"
+                      : ` · Ocupada${availabilityDate}`;
+              return <option key={room.id} value={room.id} disabled={!room.active || noRate || unavailableForDates}>{room.name} · {detail}{status}</option>;
             })}
           </select>
           {loadingRooms && <small className="reservation-room-status" role="status">Cargando habitaciones disponibles…</small>}

@@ -43,6 +43,7 @@ export interface Room {
   pricePerNight: number;
   active: boolean;
   available: boolean;
+  availableFrom?: string;
   createdAt?: string;
   updatedAt?: string;
 }
